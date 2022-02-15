@@ -1,0 +1,6 @@
+{:paths ["server"]
+ :deps {luminus/ring-undertow-adapter {:mvn/version "1.2.5"}
+        metosin/muuntaja {:mvn/version "0.6.8"}
+        metosin/reitit-ring {:mvn/version "0.5.15"}
+        org.clojars.efi/simplex {:mvn/version "0.2.2"}
+        }}
