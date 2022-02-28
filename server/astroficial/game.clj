@@ -6,17 +6,18 @@
 
 (def grid-options
   "Options determining how the grid is generated"
-  {:grid-size 5
-   :noise-mod 1
-   :noise-scale 0.01
-   :noise-max 120
+  {:grid-size 6
+   :noise-mod 1.6
+   :noise-scale 0.17
+   :noise-max 150
    
-   :moutain-height 0.90
+   :moutain-height 0.70
    :land-height 0.20})
 
 ;; Convenience wrapper around the Java method to allow more idiomatic uses
 (def sqrt #(Math/sqrt %))
 
+(def seed simplex/seed)
 
 (defn axial->cartesian
   "Converts an axial coordinate to a cartesian coordinate.
@@ -54,7 +55,6 @@
 (defn +cartesian
   "Add the cartesian coordinates to the hexagon"
   [hexagon]
-  (println "+cartesian" hexagon)
   (assoc hexagon
          :cartesian
          (axial->cartesian (:coordinates hexagon))))
@@ -65,8 +65,10 @@
    {:keys [cartesian] :as hexagon}]
   (assoc hexagon
          :noise
-         (simplex/noise (normalize min max (first cartesian))
-                        (normalize min max (second cartesian)))))
+         (simplex/noise (* (/ (first cartesian) noise-mod)
+                           noise-scale)
+                        (* (/ (second cartesian) noise-mod)
+                           noise-scale))))
 
 (defn +terrain
   "Given hexagon with noise value returns its terrain type"
@@ -90,6 +92,12 @@
     (transduce xf conj (hex-grid grid-options))))
 
 
+(defn update-state!
+  []
+  (swap! state
+         (fn [s]
+           (assoc s :grid (hex-map)))))
+
 
 (comment
   
@@ -99,6 +107,8 @@
   (swap! state
          (fn [s]
            (assoc s :grid (hex-map))))
+  
+  (clojure.pprint/pprint @state)
 
   (- (* (sqrt 3) 2)
      (sqrt 3))

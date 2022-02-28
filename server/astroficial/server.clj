@@ -11,6 +11,8 @@
 
 (comment
   
+  @clients
+  
   ;; We can easily send messages to all connected clients
   (doseq [client @clients]
     (ws/send (slurp (muuntaja/encode "application/json" @game/state)) client))
@@ -18,7 +20,7 @@
 
 (defn handler [_]
   (println "Hello world!!!")
-  {:status 200
+  {:status 200  
    :body "Hello world."})
 
 (defn ping-handler [_]
@@ -32,8 +34,7 @@
   {:undertow/websocket
    {:on-open (fn [{:keys [channel]}]
                (println "WS open!")
-               (swap! clients #(conj % channel))
-               (ws/send "Hello world!" channel))
+               (swap! clients #(conj % channel)))
     :on-message (fn [{:keys [channel data]}]
                   (ws/send "message received" channel))
     :on-close   (fn [{:keys [channel ws-channel]}]
@@ -61,5 +62,12 @@
 
 (comment
   (start-server!)
+
+  (do
+    (game/seed)
+    (game/update-state!)
+    (doseq [client @clients]
+      (ws/send (slurp (muuntaja/encode "application/json" @game/state)) client)))
+
   )
 
