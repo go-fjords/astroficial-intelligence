@@ -28,6 +28,8 @@
   {:status 200
    :body "Pong"})
 
+(defn join-handler [_])
+
 (defn web-socket-handler
   [req]
   (println "Connect web socket!")
@@ -50,7 +52,9 @@
              :get web-socket-handler}]
      ["/ping" {:name ::ping
                :get ping-handler
-               :post handler}]])))
+               :post handler}]
+     ["/join" {:name ::join
+               :post join-handler}]])))
 
 (defn start-server!
   []
@@ -64,10 +68,16 @@
   (start-server!)
 
   (do
-    (game/seed)
-    (game/update-state!)
+    (astroficial.hex/seed!)
+    (reset! game/state {:grid []
+                        :players []})
+    (game/generate-grid! {})
+    (game/join-player! {:ip "127.0.0.1" :nick "Player 1"})
+    (game/join-player! {:ip "127.0.0.1" :nick "Player 2"})
+
     (doseq [client @clients]
       (ws/send (slurp (muuntaja/encode "application/json" @game/state)) client)))
 
+  
   )
 

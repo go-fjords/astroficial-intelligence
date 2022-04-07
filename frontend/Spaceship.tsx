@@ -10,6 +10,8 @@ import * as THREE from 'three'
 import React, { useRef } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { GLTF } from 'three-stdlib'
+import { animated, useSpring } from '@react-spring/three';
+import { useFrame } from '@react-three/fiber';
 
 type GLTFResult = GLTF & {
   nodes: {
@@ -23,17 +25,20 @@ type GLTFResult = GLTF & {
 export default function Model({ position, ...props }: JSX.IntrinsicElements['group']) {
   const group = useRef<THREE.Group>()
   const { nodes, materials } = useGLTF('./frontend/models/spaceship/scene.gltf') as GLTFResult
+  const ref = useRef<THREE.Mesh>();
 
   return (
-    <group ref={group} scale={3} {...props} dispose={null}>
+    <group ref={group} {...props} dispose={null}>
       <group rotation={[-Math.PI / 2, 0, 0]}>
-        <group rotation={[Math.PI / 2, 0, 0]} scale={0.01}>
+        <group rotation={[Math.PI / 2, 0, 0]}>
           <mesh
+            ref={ref}
             castShadow
             receiveShadow
             geometry={nodes.pCylinder13_lambert2_0.geometry}
             material={materials.lambert2}
             position={position}
+            scale={.03}
           />
         </group>
       </group>
