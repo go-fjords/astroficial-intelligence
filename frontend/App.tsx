@@ -38,7 +38,7 @@ const Graphics = () => {
         dispatchEvent={undefined}
       />
       <SkyBox />
-      <directionalLight castShadow color={0xffffff} intensity={4} position={[0, 10, 4]} />
+      <directionalLight castShadow color={0xffffff} intensity={5} position={[0, 10, 4]} />
       {spaceships.map(spaceship => {
         
         return <Spaceship key={spaceship.nick} position={spaceship.coordinates} rotation={spaceship.rotation} />
