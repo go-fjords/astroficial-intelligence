@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import create, { GetState, SetState } from 'zustand'
 import { StoreApiWithSubscribeWithSelector, subscribeWithSelector } from 'zustand/middleware'
-import { hexCoodinateToThreeCoordinate } from './calculations';
+import { hexCoodinateToThreeCoordinate, hexPositionsToRadianAngle } from './calculations';
 
 const SPACESHIP_HEIGHT = 0.5;
 
-type Coordinates = [q: number, r: number, s: number];
-type CartesianCoordinates = [x: number, y: number, z: number];
+export type Coordinates = [q: number, r: number, s: number];
+export type CartesianCoordinates = [x: number, y: number, z: number];
 
 interface Action {
   type: 'move' | 'laser' | 'rocket';
@@ -35,28 +35,38 @@ interface ServerState {
 }
 
 interface Spaceship {
-  coordinates: THREE.Vector3;
+  nick: string;
+  coordinates: CartesianCoordinates;
+  hexCoordinates: Coordinates;
+  rotation: number;
+}
+
+interface Laser {
+  coordinates: CartesianCoordinates;
 }
 
 export interface HexMesh {
-  coordinates: THREE.Vector3;
+  coordinates: CartesianCoordinates;
   height: number;
   terrain: Tile;
 }
 
 interface GameState {
+  initialized: boolean;
   clock: THREE.Clock;
   serverState: ServerState;
   spaceships: Spaceship[];
   hexagons: HexMesh[];
 
   init: (state: ServerState) => void;
-  animate: ()  => void;
+  update: (state: ServerState) => void;
+  move: () => void;
 }
 
 type State = GameState;
 
 export const useStore = create<State>((set, get) => ({
+  initialized: false,
   clock: new THREE.Clock(),
   serverState: {
     round: 0,
@@ -69,11 +79,18 @@ export const useStore = create<State>((set, get) => ({
 
   // Initialize the game state
   init: (serverState: ServerState) => {
+
+    console.log('Initializing game state');
+
     set(_state => ({
       serverState,
+      initialized: true,
       clock: new THREE.Clock(false),
       spaceships: serverState.players.map(player => ({
+        nick: player.nick,
         coordinates: hexCoodinateToThreeCoordinate(player.coordinates, SPACESHIP_HEIGHT),
+        hexCoordinates: player.coordinates,
+        rotation: 0,
       })),
       hexagons: serverState.grid.map(tile => {
         let height = 0;
@@ -85,7 +102,7 @@ export const useStore = create<State>((set, get) => ({
           coordinates: hexCoodinateToThreeCoordinate(tile.coordinates, height),
           height,
           terrain: tile.terrain,
-        } 
+        }
       })
     }));
 
@@ -93,16 +110,34 @@ export const useStore = create<State>((set, get) => ({
     const { clock } = get();
     clock.start();
   },
+  
+  update: (serverState: ServerState) => {
+    console.log('Update game state');
+    set(state => ({
+      serverState,
+      spaceships: state.spaceships.map(spaceship => {
+        const player = serverState.players.find(player => player.nick === spaceship.nick);
+        if (player) {
+          return {
+            ...spaceship,
+            hexCoordinates: player.coordinates,
+            coordinates: hexCoodinateToThreeCoordinate(player.coordinates, SPACESHIP_HEIGHT),
+            rotation: hexPositionsToRadianAngle(spaceship.hexCoordinates, player.coordinates),
+          }
+        }
+        return spaceship;
+      })
+    }))
+  },
 
-  // Animate the ships
-  animate: () => {
-    set(({clock, spaceships}) => ({
-      spaceships: spaceships.map(spaceship => ({
+  move: () => {
+    set(state => ({
+      spaceships: state.spaceships.map(({coordinates: [x,y,z], ...spaceship}) => ({
         ...spaceship,
-        coordinates: spaceship.coordinates = spaceship.coordinates.copy(new THREE.Vector3).setY(
-          (Math.sin(clock.getElapsedTime()) / 20) + .5
-        )
+        coordinates: [x+1, y, z],
       }))
-    }));
+    }))
   }
+
+
 }));

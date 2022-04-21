@@ -22,7 +22,8 @@ import { useStore, HexMesh } from "./state";
 
 const Graphics = () => {
   const { camera } = useThree();
-  const { hexagons, serverState: {players}, spaceships, animate } = useStore();
+  const { hexagons, serverState: {players}, spaceships, move } = useStore();
+
 
   return (
     <>
@@ -36,23 +37,20 @@ const Graphics = () => {
         removeEventListener={undefined}
         dispatchEvent={undefined}
       />
-
-      {/* <ambientLight intensity={0.4} /> */}
-      {/* <spotLight position={[10, 10, 10]} angle={0.5} penumbra={1} /> */}
       <SkyBox />
       <directionalLight castShadow color={0xffffff} intensity={4} position={[0, 10, 4]} />
-      {players.map(player => {
-        const pos = hexCoodinateToThreeCoordinate(player.coordinates, .8);
-        return <Spaceship key={player.nick} position={pos} />
+      {spaceships.map(spaceship => {
+        
+        return <Spaceship key={spaceship.nick} position={spaceship.coordinates} rotation={spaceship.rotation} />
       })}
-      {hexagons.filter(hex => hex.terrain !== 'void').map(hex => <Hexagon key={`${hex.coordinates.x}${hex.coordinates.y}`} {...hex} />)}
+      {hexagons.filter(hex => hex.terrain !== 'void').map(hex => <Hexagon key={`${hex.coordinates[0]}${hex.coordinates[2]}`} {...hex} />)}
     </>
   );
 };
 
 function App() {
   const socketUrl = 'ws://localhost:8080/ui';
-  const { init } = useStore();
+  const { init, update, initialized } = useStore();
   const {
     sendMessage,
     lastMessage,
@@ -62,11 +60,10 @@ function App() {
   useEffect(() => {
     if(lastMessage !== null) {
       const message = JSON.parse(lastMessage.data);
-      init(message);
+      // If we already got server state we should update instead
+      initialized ? update(message) : init(message);
     }
   }, [lastMessage])
-
-  const [count, setCount] = useState(0);
 
   return (
     <div className="App">

@@ -1,7 +1,7 @@
 import { useTexture } from '@react-three/drei';
 import { HexCoordinate, hexCoodinateToThreeCoordinate } from './calculations';
 import { HEXAGON_SIZE } from './constants';
-import { Hexagon as HexagonState } from './state';
+import { HexMesh as HexagonState } from './state';
 
 export const Hexagon = ({ coordinates, height = 0.1 }: HexagonState) => {
     const textures = useTexture([

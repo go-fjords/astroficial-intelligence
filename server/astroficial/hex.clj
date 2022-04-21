@@ -3,13 +3,25 @@
 
 (def grid-options
   "Options determining how the grid is generated"
-  {:grid-size 6
+  {:grid-size 3
    :noise-mod 1.6
    :noise-scale 0.17
    :noise-max 150
 
    :moutain-height 0.70
    :land-height 0.20})
+
+(def neighbor-vecs
+  "Possible relative neighbor coordinates"
+  [[1 0 -1]
+   [1 -1 0]
+   [0 -1 1]
+   [-1 0 1]
+   [-1 1 0]
+   [0 1 -1]])
+
+
+(def group-by-memoed (memoize group-by))
 
 (def sqrt
   "Convenience wrapper around the Java method to allow more idiomatic uses"
@@ -111,10 +123,25 @@
                          (apply + k)))
        :coordinates))
 
+
+(defn random-neighbor!
+  "Find a random, valid, neighbor of the given hexagon given
+   the game grid."
+  [grid hex]
+  (->> (mapv #(mapv + hex %) neighbor-vecs)
+       (select-keys (group-by-memoed :coordinates grid))
+       (filter (fn [[_ [v]]] (= :land (:terrain v))))
+       (map first)
+       rand-nth))
+
+
+
 ;; Rich comments
 (comment
+  (mapv + [0 0 0] (first neighbor-vecs))
+  (-> (map #(mapv + [0 0 0] %) neighbor-vecs))
 
-   ;; Generate pure hex grid of positions
+  ;; Generate pure hex grid of positions
   (hex-grid {:grid-size 3})
 
   ;; Pretty print the game state
@@ -124,7 +151,7 @@
   ;; Easy to figure out min and max cartesian coordinate for x:
   (axial->cartesian [-3 0])
   (axial->cartesian [3 0])
-  
+
   ;; And for y:
   (axial->cartesian [0 -3])
   (axial->cartesian [0 3])
@@ -140,6 +167,11 @@
 
   ;;Generate hex grid and find right most hexagon
   (-> (hex-map {})
-      right-most))
+      right-most)
+
+
+  (random-neighbor! (:grid @astroficial.game/state) [0 0 0])
+  
+  )
   
 
