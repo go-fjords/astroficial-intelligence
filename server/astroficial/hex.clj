@@ -3,7 +3,7 @@
 
 (def grid-options
   "Options determining how the grid is generated"
-  {:grid-size 3
+  {:grid-size 5
    :noise-mod 1.6
    :noise-scale 0.17
    :noise-max 150
@@ -133,7 +133,6 @@
        (filter (fn [[_ [v]]] (= :land (:terrain v))))
        (map first)
        rand-nth))
-
 
 
 ;; Rich comments

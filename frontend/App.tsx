@@ -1,28 +1,19 @@
-import ReactDOM from "react-dom";
-import React, { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect } from "react";
 import useWebSocket from "react-use-websocket";
 import {
   Canvas,
-  extend,
-  ReactThreeFiber,
-  useFrame,
-  useLoader,
   useThree,
 } from "@react-three/fiber";
-import { Texture, RepeatWrapping, ClampToEdgeWrapping } from "three";
-import { OrbitControls, useTexture } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import Spaceship from "./Spaceship";
-import logo from "./logo.svg";
 import "./App.css";
 import { SkyBox } from "./SkyBox";
 import { Hexagon } from "./Hexagon";
-import { hexCoodinateToThreeCoordinate } from "./calculations";
-import { useStore, HexMesh } from "./state";
+import { useStore } from "./state";
 
 
 const Graphics = () => {
-  const { camera } = useThree();
-  const { hexagons, serverState: {players}, spaceships, move } = useStore();
+  const { hexagons, spaceships, update } = useStore();
 
 
   return (
@@ -38,7 +29,7 @@ const Graphics = () => {
         dispatchEvent={undefined}
       />
       <SkyBox />
-      <directionalLight castShadow color={0xffffff} intensity={5} position={[0, 10, 4]} />
+      <directionalLight castShadow color={0xffffff} intensity={2} position={[0, 10, 4]} />
       {spaceships.map(spaceship => {
         
         return <Spaceship key={spaceship.nick} position={spaceship.coordinates} rotation={spaceship.rotation} />
@@ -61,6 +52,7 @@ function App() {
     if(lastMessage !== null) {
       const message = JSON.parse(lastMessage.data);
       // If we already got server state we should update instead
+      
       initialized ? update(message) : init(message);
     }
   }, [lastMessage])

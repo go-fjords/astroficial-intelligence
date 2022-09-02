@@ -7,13 +7,12 @@ title: Small space ship-low poly
 */
 
 import * as THREE from 'three'
-import React, { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { GLTF } from 'three-stdlib'
 import { animated, easings, useSpring } from '@react-spring/three';
 import { useFrame } from '@react-three/fiber';
 import { CartesianCoordinates } from './state';
-import { hexPositionsToRadianAngle } from './calculations';
 
 type GLTFResult = GLTF & {
   nodes: {

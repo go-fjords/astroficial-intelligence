@@ -9,12 +9,13 @@ export type Coordinates = [q: number, r: number, s: number];
 export type CartesianCoordinates = [x: number, y: number, z: number];
 
 interface Action {
-  type: 'move' | 'laser' | 'rocket';
+  type: 'move' | 'laser' | 'rocket' | 'noop';
   coordinates: Coordinates;
 }
 
 interface Player {
   nick: string;
+  hitpoints: number;
   coordinates: Coordinates;
   cartesianCoordinates: CartesianCoordinates;
 }
@@ -36,6 +37,7 @@ interface ServerState {
 
 interface Spaceship {
   nick: string;
+  hitpoints: number;
   coordinates: CartesianCoordinates;
   hexCoordinates: Coordinates;
   rotation: number;
@@ -54,13 +56,13 @@ export interface HexMesh {
 interface GameState {
   initialized: boolean;
   clock: THREE.Clock;
-  serverState: ServerState;
+  round: number;
   spaceships: Spaceship[];
+  lasers: Laser[]; 
   hexagons: HexMesh[];
 
   init: (state: ServerState) => void;
   update: (state: ServerState) => void;
-  move: () => void;
 }
 
 type State = GameState;
@@ -68,12 +70,8 @@ type State = GameState;
 export const useStore = create<State>((set, get) => ({
   initialized: false,
   clock: new THREE.Clock(),
-  serverState: {
-    round: 0,
-    players: [],
-    grid: [],
-    actions: [],
-  },
+  round: 0,
+  lasers: [],
   spaceships: [],
   hexagons: [],
 
@@ -83,11 +81,13 @@ export const useStore = create<State>((set, get) => ({
     console.log('Initializing game state');
 
     set(_state => ({
-      serverState,
       initialized: true,
       clock: new THREE.Clock(false),
+      round: serverState.round,
+      lasers: [],
       spaceships: serverState.players.map(player => ({
         nick: player.nick,
+        hitpoints: player.hitpoints,
         coordinates: hexCoodinateToThreeCoordinate(player.coordinates, SPACESHIP_HEIGHT),
         hexCoordinates: player.coordinates,
         rotation: 0,
@@ -114,7 +114,6 @@ export const useStore = create<State>((set, get) => ({
   update: (serverState: ServerState) => {
     console.log('Update game state');
     set(state => ({
-      serverState,
       spaceships: state.spaceships.map(spaceship => {
         const player = serverState.players.find(player => player.nick === spaceship.nick);
         if (player) {
@@ -126,18 +125,21 @@ export const useStore = create<State>((set, get) => ({
           }
         }
         return spaceship;
+      }),
+      hexagons: serverState.grid.map(tile => {
+        let height = 0;
+        switch (tile.terrain) {
+          case 'land': height = tile.noise/10; break;
+          case 'mountain': height = (tile.noise / 2) + 0.2; break;
+        }
+        return {
+          coordinates: hexCoodinateToThreeCoordinate(tile.coordinates, height),
+          height,
+          terrain: tile.terrain,
+        }
       })
     }))
   },
-
-  move: () => {
-    set(state => ({
-      spaceships: state.spaceships.map(({coordinates: [x,y,z], ...spaceship}) => ({
-        ...spaceship,
-        coordinates: [x+1, y, z],
-      }))
-    }))
-  }
 
 
 }));

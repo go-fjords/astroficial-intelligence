@@ -1,18 +1,15 @@
 import { useTexture } from '@react-three/drei';
-import { HexCoordinate, hexCoodinateToThreeCoordinate } from './calculations';
 import { HEXAGON_SIZE } from './constants';
 import { HexMesh as HexagonState } from './state';
 
 export const Hexagon = ({ coordinates, height = 0.1 }: HexagonState) => {
-    const textures = useTexture([
-      './frontend/models/rock/Rock035_1K_Color.jpg',
-      './frontend/models/rock/Rock035_1K_Displacement.jpg',
-      './frontend/models/rock/Rock035_1K_NormalDX.jpg',
-      './frontend/models/rock/Rock035_1K_Roughness.jpg',
-      './frontend/models/rock/Rock035_1K_AmbientOcclusion.jpg',
-    ]);
-  
-    const [color, displacement, normal, roughness, ambientOcclusion] = textures;
+    const textures = useTexture({
+      map: './frontend/models/rocks/Rock048_1K_Color.jpg',
+      displacementMap: './frontend/models/rocks/Rock048_1K_Displacement.jpg',
+      normalMap: './frontend/models/rocks/Rock048_1K_NormalGL.jpg',
+      roughnessMap: './frontend/models/rocks/Rock048_1K_Roughness.jpg',
+      aoMap: './frontend/models/rocks/Rock048_1K_AmbientOcclusion.jpg',
+    });
   
     return (
       <mesh castShadow receiveShadow position={coordinates} rotation={[0, 0, 0]}>
@@ -21,11 +18,7 @@ export const Hexagon = ({ coordinates, height = 0.1 }: HexagonState) => {
         />
         <meshStandardMaterial
           displacementScale={0}
-          map={color}
-          displacementMap={displacement}
-          normalMap={normal}
-          roughnessMap={roughness}
-          aoMap={ambientOcclusion}
+          {...textures}
         />
       </mesh>
     );
