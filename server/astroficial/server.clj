@@ -1,7 +1,7 @@
 (ns astroficial.server
   (:require [astroficial.game :as game]
             [clj-http.client :as client]
-            [clojure.core.async :refer [<! go go-loop timeout]]
+            [clojure.core.async :refer [<! go-loop timeout]]
             [muuntaja.core :as muuntaja]
             [reitit.ring :as ring]
             [ring.adapter.undertow :refer [run-undertow]]
@@ -14,20 +14,22 @@
 
 
 (defn ask-ai!
-  [{:keys [url state]}]
-  (try (->> (client/post url
-                        {:body (->> state
-                                    (muuntaja/encode "application/json")
-                                    slurp)
-                         :content-type :json
-                         :socket-timeout 4000
-                         :connect-timeout 4000
-                         :accept :json})
-            :body
-            (muuntaja/decode "application/json"))
-       (catch java.net.SocketTimeoutException _ (println "Player AI spent more than 4 seconds replying") :error)
-       (catch java.net.ConnectException _ (println "Player AI did not respond") :error)
-       (catch Exception _ (println "Player AI failed to return valid response") :error)))
+  [{:keys [url nick state]}]
+  (merge (try (->> (client/post url
+                                {:body (->> state
+                                            (muuntaja/encode "application/json")
+                                            slurp)
+                                 :content-type :json
+                                 :socket-timeout 4000
+                                 :connect-timeout 4000
+                                 :accept :json})
+                   :body
+                   (muuntaja/decode "application/json"))
+              (catch java.net.SocketTimeoutException _ (println "Player AI spent more than 4 seconds replying") {:type :error})
+              (catch java.net.ConnectException _ (println "Player AI did not respond") {:type :error})
+              (catch Exception _ (println "Player AI failed to return valid response") {:type :error}))
+         {:url url
+          :nick nick}))
 
 
 (defn ai-requests
@@ -35,35 +37,26 @@
   [state]
   (->> state
        :players
-       (map #(select-keys % [:url]))
+       (map #(select-keys % [:url :nick]))
        (map #(assoc % :state state))))
 
-(defn apply-actions
-  [state actions]
-  (println "Apply actions!!" actions)
-  (-> state
-      (update :round inc)
-      (update :players (fn [players]
-                         (println "Players update")
-                         (map (fn [player action]
-                                (println player action)
-                                (assoc player :coordinates (:coordinates action)))
-                              players
-                              actions)))))
+
 
 (defn start-game!
   []
-  (while (= @game-status :play)
-    (println "Running round!")
-    (let [state @game/state
-          requests (ai-requests state)
-          actions (mapv #(-> % ask-ai! future) requests)
-          new-state (as-> actions $
-                      (map deref $)
-                      ;; Wait for all action requests to resolve
-                      (apply-actions state $))]
-                ;;(<! (timeout 4000)) ;; Don't do anything before waiting for 4 seconds
-      (reset! game/state new-state))))
+  (go-loop [] ;; Use a go-loop to keep running rounds until the game is over
+    (when (= @game-status :play) ;; Abort game loop when game is no longer in play
+      (println "Running round!")
+      (let [state @game/state ;; Get the current game state
+            prepared-actions (->> state ai-requests (mapv #(-> % ask-ai! future)))] ;; Send of AI requests
+        (<! (timeout 4000)) ;; Wait for at least 4 secs before doing anything
+        ;; Calculate new game state
+        (->> prepared-actions
+             (mapv deref)
+             (game/apply-actions state)
+             (reset! game/state))
+        ;; Start new round
+        (recur)))))
 
 
 
@@ -77,6 +70,7 @@
                       (slurp $)
                       (ws/send $ client)))))
 
+;; Whenever game status is updated to playing start the game loop
 (add-watch game-status
            :start-game
            (fn [_key _atom _old-state new-state]
@@ -84,11 +78,7 @@
              (when (= :play new-state)
                (future (start-game!)))))
 
-;; (add-watch game/state
-;;            :start-game
-;;            (fn [_key _atom _old-state new-state]
-;;              (when (= 2 (count (:players new-state)))
-;;                )))
+
 
 (defn handler [_]
   (println "Hello world!!!")
@@ -155,8 +145,6 @@
 
   (reset! game-status :stop)
   (reset! game-status :play)
-
-  (reset! playing false)
 
   (swap! game/state
          (fn [s]

@@ -1,5 +1,6 @@
 (ns astroficial.hex
-  (:require [simplex.noise :as simplex]))
+  (:require [simplex.noise :as simplex]
+            [clojure.math :refer [sqrt round]]))
 
 (def grid-options
   "Options determining how the grid is generated"
@@ -13,19 +14,16 @@
 
 (def neighbor-vecs
   "Possible relative neighbor coordinates"
-  [[1 0 -1]
-   [1 -1 0]
-   [0 -1 1]
-   [-1 0 1]
-   [-1 1 0]
-   [0 1 -1]])
+  [[1 0 -1] ;; right
+   [0 1 -1] ;; right-down
+   [-1 1 0] ;; left-down
+   [-1 0 1] ;; left
+   [0 -1 1] ;; left-up
+   [1 -1 0]]) ;; right-up
 
 
 (def group-by-memoed (memoize group-by))
 
-(def sqrt
-  "Convenience wrapper around the Java method to allow more idiomatic uses"
-  #(Math/sqrt %))
 
 (def seed!
   "Set new seed"
@@ -35,9 +33,62 @@
   "Converts an axial coordinate to a cartesian coordinate.
    As this is used for game logic we assume a hex size of 1."
   [[q r]]
-  [(+ (* (sqrt 3) q)
-      (* (/ (sqrt 3) 2) r))
-   (* (/ 3. 2) r)])
+  [(+ (* (sqrt 3.0) q)
+      (* (/ (sqrt 3.0) 2) r))
+   (* (/ 3.0 2) r)])
+
+
+(defn add
+  "Adds two cubical hex coordinates"
+  [a b]
+  (mapv + a b))
+
+(defn distance
+  "Calculates the distance between two hexes in cube coordinates system
+   Source: https://www.redblobgames.com/grids/hexagons/#distances"
+  [a b]
+  (as-> (map - a b) $
+        (map abs $)
+        (apply max $)))
+
+
+(defn cube-round
+  [frac]
+  (let [[q r s :as rounded] (map round frac)
+        [q_diff r_diff s_diff] (as-> rounded $
+                  (map - $ frac)
+                  (map abs $))]
+    (println "diffs: " q r s)
+    (cond (and (> q_diff r_diff) (> q_diff s_diff))
+          [(- (- r) s) r s]
+          
+          (> r_diff s_diff)
+          [q (- (- q) s) s]
+          
+          :else
+          [q r (- (- q) r)])))
+
+(defn lerp
+  "Linear interpolation between two values"
+  [a b t]
+  (+ a (* (- b a) t)))
+
+(defn lerp-cube
+  "Linear interpolation between two cube coordinates"
+  [a b t]
+  (map lerp a b (repeat t)))
+
+(defn line-draw
+  "Given hex coordinates a and b, returns a list of hex coordinates
+   that are on the direct line between a and b.
+   Source: https://www.redblobgames.com/grids/hexagons/#line-drawing"
+  [a b]
+  (->> (distance a b)
+       inc
+       range
+       (map #(* (/ 1.0 (distance a b)) %))
+       (map (partial lerp-cube a b))
+       (map cube-round)))
 
 (defn max-x
   "Find the max cartesian coordinate in the grid given its size.
@@ -140,11 +191,18 @@
   (mapv + [0 0 0] (first neighbor-vecs))
   (-> (map #(mapv + [0 0 0] %) neighbor-vecs))
 
+  (distance [0 0 0] [-2 -1 3])
+  ;; => 3
+
+  (line-draw [0 0 0] [-4 0 4])
+  ;; => ([0 0 0] [-1 0 1] [-2 0 2] [-3 0 3] [-4 0 4])
+
+  (line-draw [0 0 0] [-1 -2 3])
+  ;; => ([0 0 0] [0 -1 1] [-1 -1 2] [-1 -2 3])
+
+
   ;; Generate pure hex grid of positions
   (hex-grid {:grid-size 3})
-
-  ;; Pretty print the game state
-  (clojure.pprint/pprint @state)
 
   ;; Given map size 3 (hexagons 3 out from center each radial direction)
   ;; Easy to figure out min and max cartesian coordinate for x:
@@ -170,7 +228,7 @@
 
 
   (random-neighbor! (:grid @astroficial.game/state) [0 0 0])
-  
+
   )
   
 

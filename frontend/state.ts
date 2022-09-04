@@ -48,6 +48,7 @@ interface Laser {
 }
 
 export interface HexMesh {
+  hexCoordinates: Coordinates;
   coordinates: CartesianCoordinates;
   height: number;
   terrain: Tile;
@@ -99,6 +100,7 @@ export const useStore = create<State>((set, get) => ({
           case 'mountain': height = (tile.noise / 2) + 0.2; break;
         }
         return {
+          hexCoordinates: tile.coordinates,
           coordinates: hexCoodinateToThreeCoordinate(tile.coordinates, height),
           height,
           terrain: tile.terrain,
@@ -133,6 +135,7 @@ export const useStore = create<State>((set, get) => ({
           case 'mountain': height = (tile.noise / 2) + 0.2; break;
         }
         return {
+          hexCoordinates: tile.coordinates,
           coordinates: hexCoodinateToThreeCoordinate(tile.coordinates, height),
           height,
           terrain: tile.terrain,
