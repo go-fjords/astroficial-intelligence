@@ -58,9 +58,10 @@
 
 
 (defn land-hex?
-  [grid coordinate] 
-  (some #(and (= coordinate (:coordinate %))
-              (= :land (:terrain %)))
+  [grid coordinate]
+  (some (fn [hex]
+          (and (= coordinate (:coordinates hex))
+               (= :land (:terrain hex))))
         grid))
 
 
@@ -77,8 +78,7 @@
                     (filter #(= (:nick %) (:nick action)))
                      first
                     :coordinates)
-        new-pos (->> action :direction (hex/add old-pos))] 
-    (println "new-pos" new-pos)
+        new-pos (->> action :direction (hex/add old-pos))]
     (cond
       (> (hex/distance old-pos new-pos) 1)
       {:type :noop
@@ -111,7 +111,7 @@
    Events can be used to update the game state as well as animate
    the UI on the frontend."
   [state actions action]
-  (clojure.pprint/pprint action)
+  (println "action->event" action)
   (try
     (case (-> action :type keyword)
       :move (move->event state actions action)
@@ -132,32 +132,42 @@
 
 
 (defn move-event->state
-  [players event]
+  [event players]
   (map (fn [player]
          (if (= (:nick player) (:nick event))
            (assoc player :coordinates (:coordinates event))
            player))
        players))
 
+(defn collision-event->state
+  [event players]
+  (map (fn [player]
+         (if (= (:nick player) (:nick event))
+           (assoc player :hitpoints (- (:hitpoints player) (:hitpoints event)))
+           player))
+       players))
+
 (defn event->state
   "Given a game state and an event, returns the new game state."
   [state event]
-  (case (:type event)
+  (println "Event" event)
+  (case (-> event :type keyword)
     :noop state
     :move (update state
                   :players
                   (partial move-event->state event))
+    :collision (update state
+                       :players
+                       (partial colission-event->state event))
     state))
 
 (defn events->state
   [state]
-  (clojure.pprint/pprint (:events state))
   (reduce event->state state (:events state)))
 
 
 (defn apply-actions
   [state actions]
-  (println "Apply actions!!" )
   (-> state
       (update :round inc) 
       (assoc :events (actions->events state actions))

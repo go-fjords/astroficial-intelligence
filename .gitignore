@@ -8,3 +8,4 @@ dist-ssr
 .calva
 .cpcache
 .nrepl-port
+vendor
