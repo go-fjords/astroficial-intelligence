@@ -16,7 +16,7 @@ npm install # Install deps
 NICK="Your Nick" PORT=1337 nodemon index.js
 ```
 
-## [PHP and Slim framework]
+## [PHP and Slim framework](/php-slim)
 
 For the PHP-folks [Slim](https://www.slimframework.com/) a pretty barebones framework that seems a good fit for this AI.
 The example implements a random AI much the same way as in the JavaScript example.
