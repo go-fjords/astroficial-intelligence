@@ -89,6 +89,7 @@
       {:type :collision
        :nick (:nick action)
        :hitpoints -5
+       :coordinates new-pos
        :reason "Can't move to a non-land hex, subtracting hitpoints"}
       
       :else
@@ -156,7 +157,7 @@
     :move (update state
                   :players
                   (partial move-event->state event))
-    :collision (update state
+    #_#_:collision (update state
                        :players
                        (partial colission-event->state event))
     state))

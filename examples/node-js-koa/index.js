@@ -33,7 +33,7 @@ const validMoves = (grid, currentPos) => {
   const neighbours = moves.map(move => addHex(currentPos, move));
   return grid
     .filter(hex => neighbours.find(n => equalPos(n, hex.coordinates)))
-    .filter(hex => hex.terrain === "land")
+    .filter(hex => hex.terrain === "land" || hex.terrain === "mountain")
     .map(hex => subHex(hex.coordinates, currentPos));
 }
 

@@ -69,7 +69,7 @@ export default function Model({ position: newPos, rotation: newRot, ...props }: 
     },
     config: {
       precision: 0.001,
-      duration: 1250,
+      duration: 600, //1250,
       easing: easings.easeInOutSine
     }
   })

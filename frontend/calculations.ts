@@ -33,8 +33,6 @@ export const hexPositionsToRadianAngle = (hex1: HexCoordinate, hex2: HexCoordina
     const [q1, r1, s1] = hex1;
     const [q2, r2, s2] = hex2;
     const angle = ANGLES[JSON.stringify([q2 - q1, r2 - r1, s2 - s1])];
-    console.log('Computed hex dir', [q2 - q1, r2 - r1, s2 - s1]);
-    console.log('Angle: ', angle);
     return angle;
 }
 
