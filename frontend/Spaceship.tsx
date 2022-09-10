@@ -10,7 +10,7 @@ import * as THREE from 'three'
 import { useEffect, useRef, useState } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { GLTF } from 'three-stdlib'
-import { animated, easings, useSpring } from '@react-spring/three';
+import { animated, easings, useChain, useSpring, useSpringRef } from '@react-spring/three';
 import { useFrame } from '@react-three/fiber';
 import { CartesianCoordinates } from './state';
 
@@ -26,26 +26,45 @@ type GLTFResult = GLTF & {
 interface Spaceship {
   position: CartesianCoordinates;
   rotation: number;
+  collisionCoordinates?: CartesianCoordinates;
+  event: Event['type'];
 }
 
-export default function Model({ position: newPos, rotation: newRot, ...props }: Spaceship) {
+export default function Model({ position: newPos, rotation: newRot, event, collisionCoordinates, ...props }: Spaceship) {
   const group = useRef<THREE.Group>()
   const { nodes, materials } = useGLTF('./frontend/models/spaceship/scene.gltf') as GLTFResult
   const ref = useRef<THREE.Mesh>();
   const [[prevPos, nextPos], setPositions] = useState<CartesianCoordinates[]>([newPos, newPos]);
   const [[prevRot, nextRot], setRotations] = useState<number[]>([0, 0]);
-  console.log('Previous rotation: ', prevRot);
-  console.log('New rotation', newRot)
 
   useEffect(() => {
-    setPositions([nextPos, newPos])
-  }, [newPos]);
+    switch (event) {
+      case 'collision': {
+        setPositions([nextPos, collisionCoordinates?? newPos]);
+        setTimeout(() => {
+          setPositions([collisionCoordinates?? newPos, nextPos])
+        }, 850)
+        break;
+      }
+      case 'move': {
+        setPositions([nextPos, newPos])
+        break;
+      }
+    }
+  }, [newPos, collisionCoordinates]);
 
   useEffect(() => {
     setRotations([nextRot, newRot])
   }, [newRot]);
+
+
+  const rotationRef = useSpringRef()
+  const moveRef = useSpringRef()
+
+
   
   const { rotation } = useSpring({
+    ref: rotationRef,
     from: {
       rotation: prevRot,
     },
@@ -60,7 +79,8 @@ export default function Model({ position: newPos, rotation: newRot, ...props }: 
   })
 
   const { position } = useSpring({
-    delay: 750, // Wait for rotation
+    ref: moveRef,
+    //delay: 750, // Wait for rotation
     from: {
       position: prevPos,
     },
@@ -73,6 +93,9 @@ export default function Model({ position: newPos, rotation: newRot, ...props }: 
       easing: easings.easeInOutSine
     }
   })
+
+
+  useChain([rotationRef, moveRef])
 
 
   useFrame(({ clock }) => {

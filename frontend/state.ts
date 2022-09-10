@@ -1,7 +1,6 @@
 import * as THREE from "three";
 import create, { GetState, SetState } from "zustand";
 import {
-  StoreApiWithSubscribeWithSelector,
   subscribeWithSelector,
 } from "zustand/middleware";
 import { produce } from "immer";
@@ -59,8 +58,10 @@ interface Spaceship {
   nick: string;
   hitpoints: number;
   coordinates: CartesianCoordinates;
+  collisionCoordinates?: CartesianCoordinates;
   hexCoordinates: Coordinates;
   rotation: number;
+  event: Event['type'];
 }
 
 interface Laser {
@@ -114,6 +115,7 @@ export const useStore = create<State>((set, get) => ({
         ),
         hexCoordinates: player.coordinates,
         rotation: 0,
+        event: 'noop'
       })),
       hexagons: serverState.grid.map((tile) => {
         let height = 0;
@@ -150,13 +152,15 @@ export const useStore = create<State>((set, get) => ({
                 (s) => s.nick === event.nick
               );
               if (spaceship) {
+                spaceship.event = 'move';
+                const oldHexCoordinates = spaceship.hexCoordinates;
                 spaceship.coordinates = hexCoodinateToThreeCoordinate(
                   event.coordinates,
                   SPACESHIP_HEIGHT
                 );
                 spaceship.hexCoordinates = event.coordinates;
                 spaceship.rotation = hexPositionsToRadianAngle(
-                  spaceship.hexCoordinates,
+                  oldHexCoordinates,
                   event.coordinates
                 );
               }
@@ -167,27 +171,21 @@ export const useStore = create<State>((set, get) => ({
                 (s) => s.nick === event.nick
               );
               if (spaceship) {
-                const currentHexCoordinates = spaceship.hexCoordinates;
-                const currentCoordinate = spaceship.coordinates;
-                const targetCoordinate = hexCoodinateToThreeCoordinate(
+                const [x1, y, z1] = hexCoodinateToThreeCoordinate(
                   event.coordinates,
                   SPACESHIP_HEIGHT
                 );
+                const [x2, _, z2] = spaceship.coordinates;
 
-                // Find the mid point between the current and target coordinate
-                const midPoint: CartesianCoordinates = [
-                  (currentCoordinate[0] + targetCoordinate[0]) / 2,
-                  currentCoordinate[1],
-                  (currentCoordinate[2] + targetCoordinate[2]) / 2,
-                ];
-
-                spaceship.coordinates = midPoint;
-                spaceship.hexCoordinates = event.coordinates;
+                spaceship.collisionCoordinates = [(x1 + x2) / 2, y, (z1 + z2) / 2];
                 spaceship.rotation = hexPositionsToRadianAngle(
                   spaceship.hexCoordinates,
                   event.coordinates
                 );
-                spaceship.hitpoints -= 1;
+                spaceship.event = 'collision';
+                setTimeout(() => {
+
+                })
               }
               break;
             }

@@ -16,8 +16,6 @@ const moves = [
   [0, 1, -1], // right down
 ];
 
-console.log("NICK:", NICK);
-
 // Given two coordinates returns new hex coordinate, useful
 // for calculating neighbours
 const addHex = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -33,7 +31,6 @@ const validMoves = (grid, currentPos) => {
   const neighbours = moves.map(move => addHex(currentPos, move));
   return grid
     .filter(hex => neighbours.find(n => equalPos(n, hex.coordinates)))
-    .filter(hex => hex.terrain === "land" || hex.terrain === "mountain")
     .map(hex => subHex(hex.coordinates, currentPos));
 }
 
