@@ -66,6 +66,25 @@
 
 
 
+(defn colliding-players?
+  "Check if the player will collide with any other player given state, action and actions.
+   No need to check validity of other player moves, new-pos is already checked for validity."
+  [players actions nick new-position]
+  (println "Hello there!")
+  (->> (map (fn [action player]
+              (println "Checking player" (:nick player) "direction" (:direction action))
+              {:new-coordinates (if (= "move" (:type action))
+                                 (hex/add (:coordinates player) (:direction action))
+                                 (:coordinates player))
+               :nick (:nick player)})
+            actions
+            players)
+       (filter #(not= (:nick %) nick))
+       (map :new-coordinates)
+       (filter #(= new-position %))
+       count
+       (not= 0)))
+
 
 (defn move->event
   "Given a move action returns one of the following events:
@@ -74,10 +93,10 @@
    - :noop {}"
   [state actions action]
   (let [old-pos (->> state
-                    :players
-                    (filter #(= (:nick %) (:nick action)))
+                     :players
+                     (filter #(= (:nick %) (:nick action)))
                      first
-                    :coordinates)
+                     :coordinates)
         new-pos (->> action :direction (hex/add old-pos))]
     (cond
       (> (hex/distance old-pos new-pos) 1)
@@ -91,6 +110,13 @@
        :hitpoints -5
        :coordinates new-pos
        :reason "Can't move to a non-land hex, subtracting hitpoints"}
+      
+      (colliding-players? (:players state) actions (:nick action) new-pos)
+      {:type :collision
+       :nick (:nick action)
+       :hitpoints -5
+       :coordinates new-pos
+       :reason "Can't move to a hex occupied by another player, subtracting hitpoints"}
       
       :else
       {:type :move
