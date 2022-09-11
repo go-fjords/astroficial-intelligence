@@ -18,6 +18,11 @@ const moves = [
 
 console.log("NICK:", NICK);
 
+const actions = [
+  "move",
+  "lazer",
+]
+
 // Given two coordinates returns new hex coordinate, useful
 // for calculating neighbours
 const addHex = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -33,7 +38,14 @@ const validMoves = (grid, currentPos) => {
   const neighbours = moves.map(move => addHex(currentPos, move));
   return grid
     .filter(hex => neighbours.find(n => equalPos(n, hex.coordinates)))
-    .filter(hex => hex.terrain === "land")
+    .filter(hex => {console.log(hex); return hex.terrain === "land"})
+    .map(hex => subHex(hex.coordinates, currentPos));
+}
+
+const vallidAttackDirection = (grid, currentPos) => {
+  const neighbours = moves.map(move => addHex(currentPos, move));
+  return grid
+    .filter(hex => neighbours.find(n => equalPos(n, hex.coordinates)))
     .map(hex => subHex(hex.coordinates, currentPos));
 }
 
@@ -41,14 +53,19 @@ const validMoves = (grid, currentPos) => {
 const timer = ms => new Promise( res => setTimeout(res, ms));
 
 const ai = (state) => {
+  console.log(state.grid)
   const me = state.players.find((p) => p.nick === NICK);
+  // Do random action
+  const actionType = actions[Math.floor(Math.random() * actions.length)];
+
   const moves = validMoves(state.grid, me.coordinates);
   const direction = moves[Math.floor(Math.random() * moves.length)];
   // We just always keep on moving randomly around
   const action = {
-    type: "move",
+    type: actionType,
     direction,
   };
+
   return action;
 };
 

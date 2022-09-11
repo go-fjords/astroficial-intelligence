@@ -48,23 +48,23 @@
    Source: https://www.redblobgames.com/grids/hexagons/#distances"
   [a b]
   (as-> (map - a b) $
-        (map abs $)
-        (apply max $)))
+    (map abs $)
+    (apply max $)))
 
 
 (defn cube-round
   [frac]
   (let [[q r s :as rounded] (map round frac)
         [q_diff r_diff s_diff] (as-> rounded $
-                  (map - $ frac)
-                  (map abs $))]
+                                 (map - $ frac)
+                                 (map abs $))]
     (println "diffs: " q r s)
     (cond (and (> q_diff r_diff) (> q_diff s_diff))
           [(- (- r) s) r s]
-          
+
           (> r_diff s_diff)
           [q (- (- q) s) s]
-          
+
           :else
           [q r (- (- q) r)])))
 
@@ -89,6 +89,15 @@
        (map #(* (/ 1.0 (distance a b)) %))
        (map (partial lerp-cube a b))
        (map cube-round)))
+
+
+(defn strait-draw
+  "Given hex coordinate, a direction and a distance returns a list of hex coordinates
+   that are on the strait line from a in the given direction."
+  [coordinate direction distance]
+  (reduce #(conj % (mapv + (last %1) %2)) [coordinate] (repeat distance direction)))
+
+
 
 (defn max-x
   "Find the max cartesian coordinate in the grid given its size.
@@ -185,6 +194,12 @@
        (map first)
        rand-nth))
 
+(defn coords->hexagons
+  "Given a list of coordinates, return a list of hexagons"
+  [grid coordinates]
+  (->> (map #(first (filter (comp (partial = %) :coordinates) grid))
+            coordinates)
+       (filter (comp not nil?))))
 
 ;; Rich comments
 (comment
@@ -218,6 +233,13 @@
   (seed!)
   (simplex/noise 0.1 0.2)
 
+  (coords->hexagons (hex-map {:grid-size 2}) [[0 0 0] [1 0 -1] [2 0 -2]])
+
+  
+
+  (= [0 0 0] [0 0 2])
+  (hex-map {})
+
   ;; Generate hex grid and find left most hexagon
   (-> (hex-map {})
       left-most)
@@ -227,8 +249,6 @@
       right-most)
 
 
-  (random-neighbor! (:grid @astroficial.game/state) [0 0 0])
+  (random-neighbor! (:grid @astroficial.game/state) [0 0 0]))
 
-  )
-  
 

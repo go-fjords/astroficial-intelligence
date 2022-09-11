@@ -142,6 +142,7 @@ export const useStore = create<State>((set, get) => ({
   },
 
   update: async (serverState: ServerState) => {
+    console.log(serverState.events)
     set(
       produce((state: GameState) => {
         serverState.events.forEach((event) => {

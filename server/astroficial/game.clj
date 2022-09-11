@@ -56,7 +56,6 @@
   [args]
   (swap! state (partial join-player args)))
 
-
 (defn land-hex?
   [grid coordinate]
   (some (fn [hex]
@@ -64,18 +63,19 @@
                (= :land (:terrain hex))))
         grid))
 
+(defn action->player
+  [action players]
+  (first (filter #(= (:nick %) (:nick action)) players)))
 
 
 (defn colliding-players?
   "Check if the player will collide with any other player given state, action and actions.
    No need to check validity of other player moves, new-pos is already checked for validity."
   [players actions nick new-position]
-  (println "Hello there!")
   (->> (map (fn [action player]
-              (println "Checking player" (:nick player) "direction" (:direction action))
               {:new-coordinates (if (= "move" (:type action))
-                                 (hex/add (:coordinates player) (:direction action))
-                                 (:coordinates player))
+                                  (hex/add (:coordinates player) (:direction action))
+                                  (:coordinates player))
                :nick (:nick player)})
             actions
             players)
@@ -92,113 +92,170 @@
    - :collide {:coordinates [q r s]}
    - :noop {}"
   [state actions action]
-  (let [old-pos (->> state
-                     :players
-                     (filter #(= (:nick %) (:nick action)))
-                     first
-                     :coordinates)
-        new-pos (->> action :direction (hex/add old-pos))]
-    (cond
-      (> (hex/distance old-pos new-pos) 1)
-      {:type :noop
-       :nick (:nick action)
-       :reason "Too far, specify a direction in terms of -1 >= x <= 1"} 
-      
-      (not (land-hex? (:grid state) new-pos))
-      {:type :collision
-       :nick (:nick action)
-       :hitpoints -5
-       :coordinates new-pos
-       :reason "Can't move to a non-land hex, subtracting hitpoints"}
-      
-      (colliding-players? (:players state) actions (:nick action) new-pos)
-      {:type :collision
-       :nick (:nick action)
-       :hitpoints -5
-       :coordinates new-pos
-       :reason "Can't move to a hex occupied by another player, subtracting hitpoints"}
-      
-      :else
-      {:type :move
-       :nick (:nick action)
-       :coordinates new-pos})))
+  (try (let [old-pos (->> state
+                          :players
+                          (filter #(= (:nick %) (:nick action)))
+                          first
+                          :coordinates)
+             new-pos (->> action :direction (hex/add old-pos))]
+         (cond
+           (> (hex/distance old-pos new-pos) 1)
+           {:type :noop
+            :nick (:nick action)
+            :reason "Too far, specify a direction in terms of -1 >= x <= 1"}
 
-(defn lazer->event
-  [state actions action]
-  {:type :lazer})
+           (not (land-hex? (:grid state) new-pos))
+           {:type :collision
+            :nick (:nick action)
+            :hitpoints -5
+            :coordinates new-pos
+            :reason "Can't move to a non-land hex, subtracting hitpoints"}
 
+           (colliding-players? (:players state) actions (:nick action) new-pos)
+           {:type :collision
+            :nick (:nick action)
+            :hitpoints -5
+            :coordinates new-pos
+            :reason "Can't move to a hex occupied by another player, subtracting hitpoints"}
 
-(defn  mine->event
-  [state actions action]
-  {:type :mine})
+           :else
+           {:type :move
+            :nick (:nick action)
+            :coordinates new-pos}))
+       (catch Exception e
+         (println "Error in move->event" e)
+         {:type :noop
+          :nick (:nick action)
+          :reason "Failed while processing move action"})))
 
-(defn action->event
-  "Given game state, all actions, and the given player action
-   returns the event that should unfold as a result of the action.
-   Events can be used to update the game state as well as animate
-   the UI on the frontend."
-  [state actions action]
-  (println "action->event" action)
+(defn lazer->events
+  "Given game state and a player lazer action returns one of the following events:
+   - :lazer {:coordinates [q r s]}
+   - :noop {}"
+  [{:keys [grid players]} action]
+  (println "Lazer!")
   (try
-    (case (-> action :type keyword)
-      :move (move->event state actions action)
-      :lazer (lazer->event state actions action)
-      :mine (mine->event state actions action)
-      {:type :noop
-       :nick (:nick action)
-       :reason (str "Unknown action type: " (:type action))})
+    (let [player (action->player action players)
+          line-of-fire (->> (hex/strait-draw (:coordinates player)
+                                             (:direction action)
+                                             12)
+                            (hex/coords->hexagons grid)
+                            (take-while #(#{:land :void} (:terrain %)))
+                            (map :coordinates))
+          hit (->> players
+                   (filter #(not= (:nick %) (:nick action)))
+                   (filter #(-> line-of-fire vec (contains? (:coordinates %)))))]
+      (cond (empty? line-of-fire)
+            [{:type :noop
+              :nick (:nick action)
+              :reason "Can't fire lazer in that direction"}]
+
+            ;; If line of fire contains player coordinates then we hit a player
+            :else
+            (do (println "Lazer ftw")
+                (concat [{:type :lazer
+                          :src-coordinate (:coordinates player)
+                          :dst-coordinate (last line-of-fire)}]
+                        (map (fn [opponent]
+                               (println "Hit opponent")
+                               {:type :lazer-hit
+                                :nick (:nick opponent)
+                                :hitpoints 10
+                                :coordinates (:coordinates opponent)
+                                :reason "Got hit by lazer"})
+                             hit)))))
     (catch Exception e
+      (println "Error in lazer->event" e)
       {:type :noop
        :nick (:nick action)
-       :reason (str "Error when processing action: " (.getMessage e))})))
-
-
-(defn actions->events
-  [state actions]
-  (map (partial action->event state actions) actions))
+       :reason "Failed while processing lazer action"})))
 
 
 (defn move-event->state
-  [event players]
-  (map (fn [player]
-         (if (= (:nick player) (:nick event))
-           (assoc player :coordinates (:coordinates event))
-           player))
-       players))
+  "Given game state and move event applies it
+   and returns new game state"
+  [state event]
+  (println "Apply move event" event)
+  (if (not= (:type event) :move)
+    state
+    (assoc state
+           :players (map (fn [player]
+                           (if (= (:nick player) (:nick event))
+                             (assoc player :coordinates (:coordinates event))
+                             player))
+                         (:players state))
+           :events (conj (:events state) event))))
 
 (defn collision-event->state
-  [event players]
-  (map (fn [player]
-         (if (= (:nick player) (:nick event))
-           (assoc player :hitpoints (- (:hitpoints player) (:hitpoints event)))
-           player))
-       players))
-
-(defn event->state
-  "Given a game state and an event, returns the new game state."
+  "Given game state and collision event applies it
+   and returns new game state"
   [state event]
-  (println "Event" event)
-  (case (-> event :type keyword)
-    :noop state
-    :move (update state
-                  :players
-                  (partial move-event->state event))
-    #_#_:collision (update state
-                       :players
-                       (partial colission-event->state event))
-    state))
+  (println "Apply collision event" event)
+  (if (not= (:type event) :collision)
+    state
+    (assoc state
+           :players (map (fn [player]
+                           (if (= (:nick player) (:nick event))
+                             (assoc player :hitpoints (- (:hitpoints player) (:hitpoints event)))
+                             player))
+                         (:players state))
+           :events (conj (:events state) event))))
 
-(defn events->state
-  [state]
-  (reduce event->state state (:events state)))
+(defn lazer-event->state
+  "Given game state and lazer event applies"
+  [state event]
+  (println "Apply lazer event" event)
+  (if (not= (:type event) :lazer)
+    state
+    (assoc state
+           :events (conj (:events state) event))))
 
+(defn lazer-hit-event->state
+  "Given game state and lazer hit event applies"
+  [state event]
+  (println "Apply lazer hit event" event)
+  (if (not= (:type event) :lazer-hit)
+    state
+    (assoc state
+           :players (map (fn [player]
+                           (if (= (:nick player) (:nick event))
+                             (update player :hitpoints #(- % (:hitpoints event)))
+                             player))
+                         (:players state))
+           :events (conj (:events state) event))))
+
+
+(defn apply-move-actions
+  [state actions]
+  (as-> actions $
+    (filter #(= (:type %) "move") $)
+    (map (partial move->event state actions) $)
+    (reduce #(case (:type %2)
+               :move (move-event->state %1 %2)
+               :collision (collision-event->state %1 %2)
+               %1) ;; Move events can trigger both move and collision events
+            state
+            $)))
+
+(defn apply-lazer-actions
+  [state actions]
+  (as-> actions $
+    (filter #(= (:type %) "lazer") $)
+    (map (partial lazer->events state) $)
+    (flatten $)
+    (reduce #(case (:type %2)
+               :lazer (lazer-event->state %1 %2)
+               :lazer-hit (lazer-hit-event->state %1 %2)
+               %1) state $)))
 
 (defn apply-actions
+  ""
   [state actions]
-  (-> state
-      (update :round inc) 
-      (assoc :events (actions->events state actions))
-      events->state))
+  (println "Apply actions" actions)
+  (as-> state $
+    (update $ :round inc)
+    (apply-move-actions $ actions)
+    (apply-lazer-actions $ actions)))
 
 
 
