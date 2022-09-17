@@ -64,15 +64,17 @@ interface Spaceship {
   event: Event['type'];
 }
 
-interface Laser {
-  coordinates: CartesianCoordinates;
-}
-
 export interface HexMesh {
   hexCoordinates: Coordinates;
   coordinates: CartesianCoordinates;
   height: number;
   terrain: Tile;
+}
+
+export interface Laser {
+  startCoordinates: CartesianCoordinates;
+  endCoordinates: CartesianCoordinates;
+  height: number;
 }
 
 interface GameState {
@@ -105,7 +107,11 @@ export const useStore = create<State>((set, get) => ({
       initialized: true,
       clock: new THREE.Clock(false),
       round: serverState.round,
-      lasers: [],
+      lasers: [{
+        startCoordinates: [0, 1, 0],
+        endCoordinates: [1, 1, 1],
+        height: 1,
+      }],
       spaceships: serverState.players.map((player) => ({
         nick: player.nick,
         hitpoints: player.hitpoints,

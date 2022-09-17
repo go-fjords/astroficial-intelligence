@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import useWebSocket from "react-use-websocket";
 import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
@@ -7,12 +7,14 @@ import "./App.css";
 import { SkyBox } from "./SkyBox";
 import { Hexagon } from "./Hexagon";
 import { useStore } from "./state";
+import { Laser } from "./Laser";
+
 
 const Graphics = () => {
-  const { hexagons, spaceships, update } = useStore();
-
+  const { hexagons, spaceships, lasers, update } = useStore();
   return (
     <>
+
       <perspectiveCamera position={[0, 0, 0]} fov={25} />
       <OrbitControls
         enablePan={true}
@@ -41,6 +43,7 @@ const Graphics = () => {
           />
         );
       })}
+      
       {hexagons
         .filter((hex) => hex.terrain !== "void")
         .map((hex) => (
@@ -49,6 +52,16 @@ const Graphics = () => {
             {...hex}
           />
         ))}
+        {lasers.map(laser => {
+        return (
+          <Laser
+            key={laser.startCoordinates.toString()}
+            startCoordinates={laser.startCoordinates}
+            endCoordinates={laser.endCoordinates}
+            height={10}
+          />
+        )
+      })}
     </>
   );
 };
