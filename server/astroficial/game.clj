@@ -13,7 +13,7 @@
 
 ;; The game support the following AI actions:
 ;; - Move to a given coordinate
-;; - Lazer attack a given direction
+;; - lazer attack a given direction
 ;; - Mine a given coordinate
 
 ;; The game state describes the current state of the game.
@@ -128,12 +128,12 @@
           :nick (:nick action)
           :reason "Failed while processing move action"})))
 
-(defn lazer->events
-  "Given game state and a player lazer action returns one of the following events:
-   - :lazer {:coordinates [q r s]}
+(defn laser->events
+  "Given game state and a player laser action returns one of the following events:
+   - :laser {:coordinates [q r s]}
    - :noop {}"
   [{:keys [grid players]} action]
-  (println "Lazer!")
+  (println "lazer!")
   (try
     (let [player (action->player action players)
           line-of-fire (->> (hex/strait-draw (:coordinates player)
@@ -148,27 +148,28 @@
       (cond (empty? line-of-fire)
             [{:type :noop
               :nick (:nick action)
-              :reason "Can't fire lazer in that direction"}]
+              :reason "Can't fire laser in that direction"}]
 
             ;; If line of fire contains player coordinates then we hit a player
             :else
-            (do (println "Lazer ftw")
-                (concat [{:type :lazer
-                          :src-coordinate (:coordinates player)
-                          :dst-coordinate (last line-of-fire)}]
+            (do (println "lazer ftw")
+                (concat [{:type :laser
+                          :nick (:nick action)
+                          :start (:coordinates player)
+                          :end (last line-of-fire)}]
                         (map (fn [opponent]
                                (println "Hit opponent")
-                               {:type :lazer-hit
+                               {:type :laser-hit
                                 :nick (:nick opponent)
                                 :hitpoints 10
                                 :coordinates (:coordinates opponent)
-                                :reason "Got hit by lazer"})
+                                :reason "Got hit by laser"})
                              hit)))))
     (catch Exception e
-      (println "Error in lazer->event" e)
+      (println "Error in laser->event" e)
       {:type :noop
        :nick (:nick action)
-       :reason "Failed while processing lazer action"})))
+       :reason "Failed while processing laser action"})))
 
 
 (defn move-event->state
@@ -201,20 +202,20 @@
                          (:players state))
            :events (conj (:events state) event))))
 
-(defn lazer-event->state
-  "Given game state and lazer event applies"
+(defn laser-event->state
+  "Given game state and laser event applies"
   [state event]
-  (println "Apply lazer event" event)
-  (if (not= (:type event) :lazer)
+  (println "Apply laser event" event)
+  (if (not= (:type event) :laser)
     state
     (assoc state
            :events (conj (:events state) event))))
 
-(defn lazer-hit-event->state
-  "Given game state and lazer hit event applies"
+(defn laser-hit-event->state
+  "Given game state and laser hit event applies"
   [state event]
-  (println "Apply lazer hit event" event)
-  (if (not= (:type event) :lazer-hit)
+  (println "Apply laser hit event" event)
+  (if (not= (:type event) :laser-hit)
     state
     (assoc state
            :players (map (fn [player]
@@ -237,15 +238,15 @@
             state
             $)))
 
-(defn apply-lazer-actions
+(defn apply-laser-actions
   [state actions]
   (as-> actions $
-    (filter #(= (:type %) "lazer") $)
-    (map (partial lazer->events state) $)
+    (filter #(= (:type %) "laser") $)
+    (map (partial laser->events state) $)
     (flatten $)
     (reduce #(case (:type %2)
-               :lazer (lazer-event->state %1 %2)
-               :lazer-hit (lazer-hit-event->state %1 %2)
+               :laser (laser-event->state %1 %2)
+               :laser-hit (laser-hit-event->state %1 %2)
                %1) state $)))
 
 (defn apply-actions
@@ -254,8 +255,9 @@
   (println "Apply actions" actions)
   (as-> state $
     (update $ :round inc)
+    (assoc $ :events [])
     (apply-move-actions $ actions)
-    (apply-lazer-actions $ actions)))
+    (apply-laser-actions $ actions)))
 
 
 

@@ -36,9 +36,9 @@ export const Hexagon = ({ coordinates, hexCoordinates, height = 0.1 }: HexagonSt
             {...textures}
           />
         </mesh>
-        <Text ref={ref}  position={[0, .5, 0]} fontSize={0.2} color="red" anchorX="center" anchorY="middle">
+        {/* <Text ref={ref}  position={[0, .5, 0]} fontSize={0.2} color="red" anchorX="center" anchorY="middle">
           {hexCoordinates[0]},{hexCoordinates[1]},{hexCoordinates[2]}
-        </Text>
+        </Text> */}
       </group>
     );
   };

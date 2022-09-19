@@ -26,11 +26,18 @@ interface EventCollision {
   coordinates: Coordinates;
 }
 
+interface EventLaser {
+  type: "laser";
+  nick: string;
+  start: Coordinates;
+  end: Coordinates;
+}
+
 interface EventNoop {
   type: "noop";
 }
 
-type Event = EventMove | EventCollision | EventNoop;
+type Event = EventMove | EventCollision | EventLaser | EventNoop;
 
 interface Player {
   nick: string;
@@ -72,8 +79,10 @@ export interface HexMesh {
 }
 
 export interface Laser {
+  nick: string;
   startCoordinates: CartesianCoordinates;
   endCoordinates: CartesianCoordinates;
+  rotation: number;
   height: number;
 }
 
@@ -107,11 +116,7 @@ export const useStore = create<State>((set, get) => ({
       initialized: true,
       clock: new THREE.Clock(false),
       round: serverState.round,
-      lasers: [{
-        startCoordinates: [0, 1, 0],
-        endCoordinates: [1, 1, 1],
-        height: 1,
-      }],
+      lasers: [],
       spaceships: serverState.players.map((player) => ({
         nick: player.nick,
         hitpoints: player.hitpoints,
@@ -151,8 +156,8 @@ export const useStore = create<State>((set, get) => ({
     console.log(serverState.events)
     set(
       produce((state: GameState) => {
+        state.lasers = [];
         serverState.events.forEach((event) => {
-          console.log("Event:", event);
           switch (event.type) {
             case "move": {
               const spaceship = state.spaceships.find(
@@ -190,11 +195,28 @@ export const useStore = create<State>((set, get) => ({
                   event.coordinates
                 );
                 spaceship.event = 'collision';
-                setTimeout(() => {
-
-                })
               }
               break;
+            }
+            case "laser": {
+              const spaceship = state.spaceships.find(
+                (s) => s.nick === event.nick
+              );
+              if(spaceship) {
+                spaceship.event = 'laser';
+                spaceship.rotation = hexPositionsToRadianAngle(
+                  event.start,
+                  event.end
+                );
+              }
+
+              state.lasers.push({
+                nick: event.nick,
+                startCoordinates: hexCoodinateToThreeCoordinate(event.start, 1),
+                endCoordinates: hexCoodinateToThreeCoordinate(event.end, 1),
+                rotation: hexPositionsToRadianAngle(event.start, event.end),
+                height: 1,
+              })
             }
             case "noop": {
               break;
@@ -203,34 +225,14 @@ export const useStore = create<State>((set, get) => ({
         });
       })
     );
+
+    setTimeout(() => {
+      set(
+        produce((state: GameState) => {
+          state.lasers = [];
+        })
+      );
+    }, 3800)
     
   },
-
-  // set(state => ({
-  //   spaceships: state.spaceships.map(spaceship => {
-  //     const player = serverState.players.find(player => player.nick === spaceship.nick);
-  //     if (player) {
-  //       return {
-  //         ...spaceship,
-  //         hexCoordinates: player.coordinates,
-  //         coordinates: hexCoodinateToThreeCoordinate(player.coordinates, SPACESHIP_HEIGHT),
-  //         rotation: hexPositionsToRadianAngle(spaceship.hexCoordinates, player.coordinates),
-  //       }
-  //     }
-  //     return spaceship;
-  //   }),
-  //   hexagons: serverState.grid.map(tile => {
-  //     let height = 0;
-  //     switch (tile.terrain) {
-  //       case 'land': height = tile.noise/10; break;
-  //       case 'mountain': height = (tile.noise / 2) + 0.2; break;
-  //     }
-  //     return {
-  //       hexCoordinates: tile.coordinates,
-  //       coordinates: hexCoodinateToThreeCoordinate(tile.coordinates, height),
-  //       height,
-  //       terrain: tile.terrain,
-  //     }
-  //   })
-  // }))
 }));

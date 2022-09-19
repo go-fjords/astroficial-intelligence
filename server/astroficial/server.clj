@@ -64,6 +64,7 @@
 (add-watch game/state
            :game-state
            (fn [_key _atom _old-state new-state]
+             (println "Send updated state to clients")
              (doseq [client @clients]
                     (as-> new-state $
                       (muuntaja/encode "application/json" $)
@@ -133,6 +134,14 @@
 (comment
   (start-server!)
 
+  (+ 1 2 3)
+
+  (defn foo [ a b] (+ a b))
+
+  (def foo2 (partial foo 1))
+
+  (foo2 2)
+  
   (do
     (astroficial.hex/seed!)
 

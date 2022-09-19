@@ -20,7 +20,7 @@ console.log("NICK:", NICK);
 
 const actions = [
   "move",
-  "lazer",
+  "laser",
 ]
 
 // Given two coordinates returns new hex coordinate, useful
@@ -38,7 +38,7 @@ const validMoves = (grid, currentPos) => {
   const neighbours = moves.map(move => addHex(currentPos, move));
   return grid
     .filter(hex => neighbours.find(n => equalPos(n, hex.coordinates)))
-    .filter(hex => {console.log(hex); return hex.terrain === "land"})
+    .filter(hex => hex.terrain === "land")
     .map(hex => subHex(hex.coordinates, currentPos));
 }
 
@@ -53,7 +53,6 @@ const vallidAttackDirection = (grid, currentPos) => {
 const timer = ms => new Promise( res => setTimeout(res, ms));
 
 const ai = (state) => {
-  console.log(state.grid)
   const me = state.players.find((p) => p.nick === NICK);
   // Do random action
   const actionType = actions[Math.floor(Math.random() * actions.length)];

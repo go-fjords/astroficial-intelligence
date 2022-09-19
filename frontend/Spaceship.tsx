@@ -50,6 +50,9 @@ export default function Model({ position: newPos, rotation: newRot, event, colli
         setPositions([nextPos, newPos])
         break;
       }
+      case 'laser': {
+        setPositions([nextPos, newPos])
+      }
     }
   }, [newPos, collisionCoordinates]);
 
@@ -106,8 +109,7 @@ export default function Model({ position: newPos, rotation: newRot, event, colli
 
   return (
     <group ref={group} {...props} dispose={null}>
-      <group rotation={[-Math.PI / 2, 0, 0]}>
-        <group rotation={[Math.PI / 2, 0, 0]}>
+
           <animated.mesh
             ref={ref}
             castShadow
@@ -118,8 +120,7 @@ export default function Model({ position: newPos, rotation: newRot, event, colli
             rotation-y={rotation}
             scale={.03}
           />
-        </group>
-      </group>
+
     </group>
   )
 }
