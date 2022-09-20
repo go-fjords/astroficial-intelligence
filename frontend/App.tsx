@@ -1,4 +1,6 @@
+import "virtual:windi.css";
 import { Suspense, useEffect, useRef, useState } from "react";
+import { Dialog } from '@headlessui/react'
 import useWebSocket from "react-use-websocket";
 import { Canvas, extend, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
@@ -62,18 +64,12 @@ const Graphics = () => {
           />
         ))}
 
-      <Selection>
-        <EffectComposer>
-          <SelectiveBloom
-            luminanceThreshold={0}
-            luminanceSmoothing={0.9}
-            height={1}
-          />
-        </EffectComposer>
+
           {lasers.map((laser, i) => {
             return (
               <Laser
                 key={laser.startCoordinates.toString() + i}
+                nick={laser.nick}
                 startCoordinates={laser.startCoordinates}
                 endCoordinates={laser.endCoordinates}
                 height={10}
@@ -81,27 +77,107 @@ const Graphics = () => {
               />
             );
           })}
-      </Selection>
     </>
   );
 };
 
+const PlayerStats = () => {
+  const { spaceships } = useStore();
+  return <table className="table-auto text-gray-200 text-shadow text-2xl">
+    <thead className="text-green-200">
+      <tr>
+        <th className="px-3">Nick</th>
+        <th className="px-3">Health</th>
+        <th className="px-3">Score</th>
+      </tr>
+    </thead>
+    <tbody>
+      {spaceships.map((spaceship) => {
+        return (
+          <tr key={spaceship.nick}>
+            <td className="px-3">{spaceship.nick}</td>
+            <td className="px-3">{spaceship.hitpoints}</td>
+            <td className="px-3">0</td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>;
+}
+
+const GameControls = ({
+  sendMessage
+}) => {
+  const [showJoin, setShowJoin] = useState(false);
+  const [nick, setNick] = useState('');
+  const [host, setHost] = useState('');
+
+  return <div className="flex flex-row items-center align-center gap-4">
+    <button className="bg-green-500 py-3 px-4 rounded pointer-events-auto cursor-pointer"
+      onClick={() => sendMessage({ command: "init" })}
+      title="Re-initialize entire game state"
+    >
+      Restart
+    </button>
+
+    <button className="bg-green-500 py-3 px-4 rounded pointer-events-auto cursor-pointer"
+      onClick={() => sendMessage({ command: "init" })}
+      title="Reset all players to initial state"
+    >
+      Reset
+    </button>
+
+    <button className="bg-green-500 py-3 px-4 rounded pointer-events-auto cursor-pointer"
+      onClick={() => setShowJoin(true)}
+      title="Join new player"
+    >
+      Join
+    </button>
+    
+  </div>
+}
+
+const GameSummary = () => {
+  const { round } = useStore();
+
+  return <div className="text-green-200 text-shadow text-2xl">
+    <div>Round: {round}</div>
+  </div>
+
+}
+
 function App() {
   const socketUrl = "ws://localhost:8080/ui";
   const { init, update, initialized } = useStore();
-  const { sendMessage, lastMessage, readyState } = useWebSocket(socketUrl);
+  const { sendJsonMessage, lastMessage, readyState } = useWebSocket(socketUrl);
 
   useEffect(() => {
     if (lastMessage !== null) {
       const message = JSON.parse(lastMessage.data);
       // If we already got server state we should update instead
-
-      initialized ? update(message) : init(message);
+      
+      console.log(message);
+      if(message.type === "init") {
+        init(message);
+      } else {
+        update(message);
+      }
     }
   }, [lastMessage]);
 
+  useEffect(() => {
+    sendJsonMessage({command: 'start'})
+  }, [])
+
   return (
-    <div className="App">
+    <div className="App relative">
+      <div className="pointer-events-none absolute z-20 min-w-screen min-h-screen">
+        <div className="px-8 py-8 w-full h-full flex flex-row justify-between">
+          <PlayerStats />
+          <GameControls sendMessage={sendJsonMessage} />
+          <GameSummary />
+        </div>
+      </div>
       <Canvas shadows style={{ background: "black" }}>
         <Suspense fallback={null}>
           <Graphics />

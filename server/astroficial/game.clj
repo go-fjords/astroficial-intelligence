@@ -1,8 +1,11 @@
 (ns astroficial.game
-  (:require [astroficial.hex :as hex]))
+  (:require [astroficial.hex :as hex]
+            [astroficial.utils :refer [tap*>]]))
 
 (def init-state
-  {;; Round keeping so we can stop in case of infinite game
+  {;; Are we playing or not?
+   :status :initialized
+   ;; Round keeping so we can stop in case of infinite game
    :round 0
    ;; The grid of hex locations and their properties
    :grid []
@@ -28,15 +31,47 @@
          (fn [s]
            (assoc s :grid (hex/hex-map grid-opts)))))
 
-
 (defn new-player
   [url nick]
   {:url url
    :nick nick
+   :hitpoints 100
    :coordinates nil
    :actions {}
    :mines 3
    :score 0})
+
+(defn new-grid
+  []
+  (hex/hex-map hex/grid-options))
+
+(defn reset-player
+  [player]
+  (merge (new-player "" "")
+         (select-keys player [:url :nick])))
+
+(defn reset-state
+  [state]
+  (merge ()))
+
+
+(defn init-game!
+  "Sets game seed, sets initial game state and generates grid"
+  []
+  (astroficial.hex/seed!)
+  (reset! state (-> init-state
+                    (assoc :grid (new-grid)))))
+
+(defn reset-game!
+  "Like init-game! but keeps players around.
+   Useful to generate appropriate grid to play on."
+  []
+  (astroficial.hex/seed!)
+  (swap! state #(-> %
+                    (merge (dissoc init-state :players))
+                    (assoc :grid (new-grid))
+                    (update :players (map reset-player)))))
+
 
 
 (defn join-player
@@ -194,13 +229,13 @@
   (println "Apply collision event" event)
   (if (not= (:type event) :collision)
     state
-    (assoc state
+    (tap*> (assoc state
            :players (map (fn [player]
                            (if (= (:nick player) (:nick event))
                              (assoc player :hitpoints (- (:hitpoints player) (:hitpoints event)))
                              player))
                          (:players state))
-           :events (conj (:events state) event))))
+           :events (conj (:events state) event)))))
 
 (defn laser-event->state
   "Given game state and laser event applies"

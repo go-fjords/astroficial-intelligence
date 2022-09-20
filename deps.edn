@@ -5,4 +5,8 @@
         metosin/muuntaja {:mvn/version "0.6.8"}
         metosin/reitit-ring {:mvn/version "0.5.15"}
         org.clojars.efi/simplex {:mvn/version "0.2.2"}
-        clj-http/clj-http {:mvn/version "3.12.3"}}}
+        clj-http/clj-http {:mvn/version "3.12.3"}}
+ :aliases {:reveal-nrepl-middleware
+{:extra-deps {vlaaad/reveal {:mvn/version "1.3.276"}}
+ :main-opts  ["-m" "nrepl.cmdline"
+              "--middleware" "[vlaaad.reveal.nrepl/middleware,cider.nrepl/cider-middleware]"]}}}

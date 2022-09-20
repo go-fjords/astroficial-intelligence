@@ -197,9 +197,13 @@
 (defn coords->hexagons
   "Given a list of coordinates, return a list of hexagons"
   [grid coordinates]
-  (->> (map #(first (filter (comp (partial = %) :coordinates) grid))
-            coordinates)
-       (filter (comp not nil?))))
+  (->> (map #(or
+              (first
+               (filter (comp (partial = %)
+                             :coordinates)
+                       grid))
+              {:coordinates % :terrain :void})
+            coordinates)))
 
 ;; Rich comments
 (comment
@@ -234,6 +238,8 @@
   (simplex/noise 0.1 0.2)
 
   (coords->hexagons (hex-map {:grid-size 2}) [[0 0 0] [1 0 -1] [2 0 -2]])
+  
+  (or nil {:hello :there})
 
   
 

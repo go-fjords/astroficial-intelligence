@@ -1,5 +1,6 @@
 (ns astroficial.server
   (:require [astroficial.game :as game]
+            [astroficial.utils :refer [tap*>]]
             [clj-http.client :as client]
             [clojure.core.async :refer [<! go-loop timeout]]
             [muuntaja.core :as muuntaja]
@@ -9,7 +10,6 @@
 
 (defonce server (atom nil))
 (defonce clients (atom #{}))
-(defonce game-status (atom :wait))
 
 
 
@@ -45,7 +45,8 @@
 (defn start-game!
   []
   (go-loop [] ;; Use a go-loop to keep running rounds until the game is over
-    (when (= @game-status :play) ;; Abort game loop when game is no longer in play
+    (when (and (= 2 (count (:players @game/state)))
+               (= @game-status :play)) ;; Abort game loop when game is no longer in play
       (println "Running round!")
       (let [state @game/state ;; Get the current game state
             prepared-actions (->> state ai-requests (mapv #(-> % ask-ai! future)))] ;; Send of AI requests
@@ -58,25 +59,44 @@
         ;; Start new round
         (recur)))))
 
+(defn client-message
+  "Given message from client"
+  [message]
+  (case (-> message :command keyword)
+    :start (start-game!)
+    :init (game/init-game!)
+    :reset (game/reset-game!)
+    :join (game/join-player! message)
+    (constantly true)))
 
+(comment
+  (keyword nil)
+  ())
 
 ;; Whenever state is updated send it to the graphics clients
 (add-watch game/state
            :game-state
-           (fn [_key _atom _old-state new-state]
+           (fn [_key _atom old-state new-state]
              (println "Send updated state to clients")
              (doseq [client @clients]
                     (as-> new-state $
+                      (assoc $ :type
+                             (cond (= :initialized (:status new-state))
+                                   :init
+
+                                   :default :update))
                       (muuntaja/encode "application/json" $)
                       (slurp $)
                       (ws/send $ client)))))
 
 ;; Whenever game status is updated to playing start the game loop
-(add-watch game-status
+(add-watch game/state
            :start-game
-           (fn [_key _atom _old-state new-state]
+           (fn [_key _atom old-state new-state]
              (println ":start-game")
-             (when (= :play new-state)
+             (when (and (= :playing (:status new-state))
+                        (not= (:status old-state)
+                              (:status new-state)))
                (future (start-game!)))))
 
 
@@ -101,11 +121,14 @@
                (println "WS open!")
                (swap! clients #(conj % channel))
                (as-> @game/state $
+                 (assoc $ :type :init)
                  (muuntaja/encode "application/json" $)
                  (slurp $)
                  (ws/send $ channel)))
     :on-message (fn [{:keys [channel data]}]
-                  (ws/send "message received" channel))
+                  (try (client-message (muuntaja/decode "application/json" data))
+                       (catch Exception e (println "Failed to decode message" e))))
+
     :on-close   (fn [{:keys [channel ws-channel]}]
                   (println "WS closed!")
                   (swap! clients #(disj % channel)))}})
@@ -134,25 +157,16 @@
 (comment
   (start-server!)
 
-  (+ 1 2 3)
-
-  (defn foo [ a b] (+ a b))
-
-  (def foo2 (partial foo 1))
-
-  (foo2 2)
-  
   (do
     (astroficial.hex/seed!)
 
     (reset! game/state game/init-state)
-
-
     (game/generate-grid! {})
     (game/join-player! {:url "http://127.0.0.1:1337" :nick "Player 1"})
     (game/join-player! {:url "http://127.0.0.1:1338" :nick "Player 2"}))
 
   (reset! game-status :stop)
+
   (reset! game-status :play)
 
   (swap! game/state
@@ -177,6 +191,8 @@
         first (future (ask-ai! {:url "http://localhost:1337" :state @game/state}))
         second (future (ask-ai! {:url "http://localhost:1338" :state @game/state}))]
     [@first @second @awaiter])
+
+  (require '[vlaaad.reveal :as r])
 
   )
 

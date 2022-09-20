@@ -153,7 +153,7 @@ export const useStore = create<State>((set, get) => ({
   },
 
   update: async (serverState: ServerState) => {
-    console.log(serverState.events)
+    console.log(JSON.stringify(serverState.events, null, 2))
     set(
       produce((state: GameState) => {
         state.lasers = [];
@@ -232,7 +232,7 @@ export const useStore = create<State>((set, get) => ({
           state.lasers = [];
         })
       );
-    }, 3800)
+    }, 3500)
     
   },
 }));
