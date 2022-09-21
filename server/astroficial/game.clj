@@ -72,7 +72,9 @@
                     (assoc :grid (new-grid))
                     (update :players (map reset-player)))))
 
-
+(defn start-game!
+  []
+  (swap! state #(assoc % :status :play)))
 
 (defn join-player
   [{:keys [url nick]}

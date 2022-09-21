@@ -16,8 +16,6 @@ const moves = [
   [0, 1, -1], // right down
 ];
 
-console.log("NICK:", NICK);
-
 const actions = [
   "move",
   "laser",
@@ -71,6 +69,7 @@ const ai = (state) => {
 app.use(async (ctx) => {
   let gameState = ctx.request.body;
   ctx.body = ai(gameState);
+  console.log(ctx.body)
 });
 
 app.listen(PORT);

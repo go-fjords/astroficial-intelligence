@@ -4,8 +4,45 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a139ab72d36748024a95b6f64b42eb3f",
+    "content-hash": "22cd7536588e6fa8e67a2759e1e3ee6e",
     "packages": [
+        {
+            "name": "cocur/chain",
+            "version": "v0.9.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/cocur/chain.git",
+                "reference": "4d0a6e4fdee3b4aa53f0937f82e98d43320659a9"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/cocur/chain/zipball/4d0a6e4fdee3b4aa53f0937f82e98d43320659a9",
+                "reference": "4d0a6e4fdee3b4aa53f0937f82e98d43320659a9",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.2"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "~8.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Cocur\\Chain\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Consistent and chainable array manipulation",
+            "support": {
+                "issues": "https://github.com/cocur/chain/issues",
+                "source": "https://github.com/cocur/chain/tree/v0.9.0"
+            },
+            "time": "2020-07-19T15:36:22+00:00"
+        },
         {
             "name": "fig/http-message-util",
             "version": "1.1.5",

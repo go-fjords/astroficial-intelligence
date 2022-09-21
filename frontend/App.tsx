@@ -110,7 +110,7 @@ const GameControls = ({
 }) => {
   const [showJoin, setShowJoin] = useState(false);
   const [nick, setNick] = useState('');
-  const [host, setHost] = useState('');
+  const [url, setUrl] = useState('');
 
   return <div className="flex flex-row items-center align-center gap-4">
     <button className="bg-green-500 py-3 px-4 rounded pointer-events-auto cursor-pointer"
@@ -133,7 +133,51 @@ const GameControls = ({
     >
       Join
     </button>
-    
+
+    <button className="bg-green-500 py-3 px-4 rounded pointer-events-auto cursor-pointer"
+      onClick={() => sendMessage({ command: "start" })}
+      title="Start game"
+    >
+      Start
+    </button>
+
+    <Dialog
+      open={showJoin}
+      onClose={() => setShowJoin(false)}
+      className="relative z-50"
+    >
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <Dialog.Panel className="w-full max-w-sm rounded bg-green-500 p-4">
+          <Dialog.Title>Add new AI player</Dialog.Title>
+          {/* Input field for nick */}
+          <div className="flex flex-col gap-2 p-2">
+            <label htmlFor="nick">Nick</label>
+            <input type="text" id="nick" value={nick} onChange={(e) => setNick(e.target.value)} />
+          </div>
+          {/* Input field for host */}
+          <div className="flex flex-col gap-2 p-2">
+            <label htmlFor="url">Url</label>
+            <input type="text" id="url" value={url} onChange={(e) => setUrl(e.target.value)} />
+          </div>
+
+          <div className="flex flex-row gap-2 p-2">
+            <button className="bg-gray-800 text-green-300 py-3 px-4 rounded pointer-events-auto cursor-pointer"
+              onClick={() => {
+                sendMessage({ command: "join", nick, url });
+                setShowJoin(false);
+              }}
+            >
+              Join
+            </button>
+            <button className="bg-gray-800 text-green-300 py-3 px-4 rounded pointer-events-auto cursor-pointer"
+              onClick={() => setShowJoin(false)}
+            >
+              Cancel
+            </button>
+          </div>
+        </Dialog.Panel>
+      </div>
+    </Dialog>
   </div>
 }
 

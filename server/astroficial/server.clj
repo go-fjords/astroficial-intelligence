@@ -24,10 +24,11 @@
                                  :connect-timeout 4000
                                  :accept :json})
                    :body
+                   ((fn [body] (println body) body))
                    (muuntaja/decode "application/json"))
               (catch java.net.SocketTimeoutException _ (println "Player AI spent more than 4 seconds replying") {:type :error})
               (catch java.net.ConnectException _ (println "Player AI did not respond") {:type :error})
-              (catch Exception _ (println "Player AI failed to return valid response") {:type :error}))
+              (catch Exception e (println "Player AI failed to return valid response" e) {:type :error}))
          {:url url
           :nick nick}))
 
@@ -44,9 +45,12 @@
 
 (defn start-game!
   []
+  (println "Starting game")
+  (swap! game/state #(assoc % :status :play))
+  (println "Game status" (:status @game/state))
   (go-loop [] ;; Use a go-loop to keep running rounds until the game is over
     (when (and (= 2 (count (:players @game/state)))
-               (= @game-status :play)) ;; Abort game loop when game is no longer in play
+               (= (:status @game/state) :play)) ;; Abort game loop when game is no longer in play
       (println "Running round!")
       (let [state @game/state ;; Get the current game state
             prepared-actions (->> state ai-requests (mapv #(-> % ask-ai! future)))] ;; Send of AI requests
@@ -62,8 +66,9 @@
 (defn client-message
   "Given message from client"
   [message]
+  (println "Message" message)
   (case (-> message :command keyword)
-    :start (start-game!)
+    :start (game/start-game!)
     :init (game/init-game!)
     :reset (game/reset-game!)
     :join (game/join-player! message)
@@ -94,7 +99,7 @@
            :start-game
            (fn [_key _atom old-state new-state]
              (println ":start-game")
-             (when (and (= :playing (:status new-state))
+             (when (and (= :play (:status new-state))
                         (not= (:status old-state)
                               (:status new-state)))
                (future (start-game!)))))
@@ -165,9 +170,9 @@
     (game/join-player! {:url "http://127.0.0.1:1337" :nick "Player 1"})
     (game/join-player! {:url "http://127.0.0.1:1338" :nick "Player 2"}))
 
-  (reset! game-status :stop)
+  (swap! game/state #(assoc % :status :initialized))
 
-  (reset! game-status :play)
+  (swap! game/state #(assoc % :status :play))
 
   (swap! game/state
          (fn [s]
