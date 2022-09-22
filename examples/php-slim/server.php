@@ -52,7 +52,7 @@ function equalPos($a, $b) {
 function validMoves($grid, $currentPos) {
   global $hex_directions, $logger;
 
-  // First we find neighbours
+  // First we find neighbours, ps @ is used to surpress deprecation warnings from Chain library
   $neighbours = @Chain::create($hex_directions)
     ->map(function($move) use ($currentPos) {
       return hex_add($currentPos, $move);

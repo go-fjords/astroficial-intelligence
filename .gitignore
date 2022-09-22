@@ -9,3 +9,6 @@ dist-ssr
 .cpcache
 .nrepl-port
 vendor
+.vscode
+bin
+obj

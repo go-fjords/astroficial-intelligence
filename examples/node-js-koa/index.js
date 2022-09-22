@@ -68,6 +68,7 @@ const ai = (state) => {
 
 app.use(async (ctx) => {
   let gameState = ctx.request.body;
+  console.log(JSON.stringify(gameState))
   ctx.body = ai(gameState);
   console.log(ctx.body)
 });
