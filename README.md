@@ -1,5 +1,7 @@
 # Astroficial Intelligence
 
+![Astroficial Intelligence screenshot](/docs/gameui.png)
+
 Astroficial Intelligence is a hexagonal grid based AI game.
 Please read [Hexagonal Grids](https://www.redblobgames.com/grids/hexagons/#basics) to understand how such a grid works.
 This game is inspired by the [Skyport Hackathon game](https://github.com/pilsprog/skyport-logic) which I played years ago.
