@@ -11,13 +11,25 @@ Players can implement their AI using any programming language that supports runn
 
 ## Running
 
-Details to be determined, but you will likely need a JVM installation.
+To run a prod version of the game server you need Docker:
+
+```bash
+# Get the latest image of the game server and UI
+docker pull ghcr.io/go-fjords/astroficial-intelligence:latest
+
+# Run the server with docker
+docker run -p 8080:8080 ghcr.io/go-fjords/astroficial-intelligence:latest
+```
 
 ## Playing
 
-
+See detailed instructions on how to play the game in [playing.md](/docs/playing.md).
 
 ## Development
+
+Astroficial Intelligence is implemented as a Clojure HTTP server and a React web client.
+The server is implemented in the `server` directory and the client in the `frontend` directory.
+Some files are located in the root directory.
 
 ### Frontend
 
@@ -38,8 +50,17 @@ The backend is developed using the [Clojure Tools Deps](https://clojure.org/guid
 You should install [Clojure](https://clojure.org/guides/getting_started).
 
 Then start the server with Cider's jack-in (in Emacs and VSCode Calva) or something similar in other editor.
-You can also run the dev repl via the command line:
+
+## Building for production
+
+The easiest way to build for production is using Docker:
 
 ```bash
-clj -M
+# Build the image
+docker build -t ghcr.io/go-fjords/astroficial-intelligence:latest .
+
+# Push image to GitHub container registry
+docker push ghcr.io/go-fjords/astroficial-intelligence:latest
 ```
+
+

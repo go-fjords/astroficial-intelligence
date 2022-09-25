@@ -66,9 +66,6 @@ function validMoves($grid, $currentPos) {
           return equalPos($n, $hex["coordinates"]);
         });
     })
-    ->filter(function($hex) {
-      return $hex["terrain"] === "land";
-    })
     ->map(function($hex) use ($currentPos) {
       return subHex($hex["coordinates"], $currentPos);
     })

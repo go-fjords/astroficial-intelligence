@@ -56,7 +56,6 @@ var validMoves = (List<Grid> grid, List<int> currentPos) => {
   var neighbours = moves.Select(move => add(currentPos, move));
   return grid
     .Where(hex => neighbours.Any(n => equal(n, hex.Coordinates)))
-    .Where(hex => hex.Terrain == "land")
     .Select(hex => sub(hex.Coordinates, currentPos))
     .ToList();
 };
