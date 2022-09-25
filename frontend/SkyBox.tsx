@@ -11,7 +11,7 @@ export const SkyBox = () => {
     "bottom.png",
     "front.png",
     "back.png",
-  ], {path: 'frontend/models/skybox/'});
+  ], {path: '/skybox/'});
 
   scene.background = texture;
 

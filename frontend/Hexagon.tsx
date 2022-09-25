@@ -1,32 +1,42 @@
-import { useTexture } from '@react-three/drei';
-import { HexCoordinate, hexCoodinateToThreeCoordinate } from './calculations';
+import { useTexture, Text } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
+import { useRef } from 'react';
 import { HEXAGON_SIZE } from './constants';
 import { HexMesh as HexagonState } from './state';
 
-export const Hexagon = ({ coordinates, height = 0.1 }: HexagonState) => {
-    const textures = useTexture([
-      './frontend/models/rock/Rock035_1K_Color.jpg',
-      './frontend/models/rock/Rock035_1K_Displacement.jpg',
-      './frontend/models/rock/Rock035_1K_NormalDX.jpg',
-      './frontend/models/rock/Rock035_1K_Roughness.jpg',
-      './frontend/models/rock/Rock035_1K_AmbientOcclusion.jpg',
-    ]);
-  
-    const [color, displacement, normal, roughness, ambientOcclusion] = textures;
+
+export const Hexagon = ({ coordinates, hexCoordinates, height = 0.1 }: HexagonState) => {
+    const textures = useTexture({
+      map: '/rocks/Rock048_1K_Color.jpg',
+      displacementMap: '/rocks/Rock048_1K_Displacement.jpg',
+      normalMap: '/rocks/Rock048_1K_NormalGL.jpg',
+      roughnessMap: '/rocks/Rock048_1K_Roughness.jpg',
+      aoMap: '/rocks/Rock048_1K_AmbientOcclusion.jpg',
+    });
+
+    const ref = useRef<any>()
+
+    useFrame(({ camera }) => {
+      // Make text face the camera
+      if(ref.current) {
+        ref.current.quaternion.copy(camera.quaternion)
+      }
+    })
   
     return (
-      <mesh castShadow receiveShadow position={coordinates} rotation={[0, 0, 0]}>
-        <cylinderGeometry
-          args={[HEXAGON_SIZE - 0.03, HEXAGON_SIZE - 0.03, height, 6]}
-        />
-        <meshStandardMaterial
-          displacementScale={0}
-          map={color}
-          displacementMap={displacement}
-          normalMap={normal}
-          roughnessMap={roughness}
-          aoMap={ambientOcclusion}
-        />
-      </mesh>
+      <group position={coordinates}>
+        <mesh castShadow receiveShadow rotation={[0, 0, 0]}>
+          <cylinderGeometry
+            args={[HEXAGON_SIZE - 0.03, HEXAGON_SIZE - 0.03, height, 6]}
+          />
+          <meshStandardMaterial
+            displacementScale={0}
+            {...textures}
+          />
+        </mesh>
+        {/* <Text ref={ref}  position={[0, .5, 0]} fontSize={0.2} color="red" anchorX="center" anchorY="middle">
+          {hexCoordinates[0]},{hexCoordinates[1]},{hexCoordinates[2]}
+        </Text> */}
+      </group>
     );
   };

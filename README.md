@@ -13,6 +13,10 @@ Players can implement their AI using any programming language that supports runn
 
 Details to be determined, but you will likely need a JVM installation.
 
+## Playing
+
+
+
 ## Development
 
 ### Frontend

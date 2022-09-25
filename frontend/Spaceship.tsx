@@ -6,47 +6,86 @@ source: https://sketchfab.com/3d-models/small-space-ship-low-poly-4e852173138b4a
 title: Small space ship-low poly
 */
 
-import * as THREE from 'three'
-import React, { useEffect, useRef, useState } from 'react'
-import { useGLTF } from '@react-three/drei'
-import { GLTF } from 'three-stdlib'
-import { animated, easings, useSpring } from '@react-spring/three';
-import { useFrame } from '@react-three/fiber';
-import { CartesianCoordinates } from './state';
-import { hexPositionsToRadianAngle } from './calculations';
+import * as THREE from "three";
+import { Text } from "@react-three/drei";
+import { useEffect, useRef, useState } from "react";
+import { useGLTF } from "@react-three/drei";
+import { GLTF } from "three-stdlib";
+import {
+  animated,
+  easings,
+  useChain,
+  useSpring,
+  useSpringRef,
+} from "@react-spring/three";
+import { useFrame } from "@react-three/fiber";
+import { CartesianCoordinates } from "./state";
 
 type GLTFResult = GLTF & {
   nodes: {
-    pCylinder13_lambert2_0: THREE.Mesh
-  }
+    pCylinder13_lambert2_0: THREE.Mesh;
+  };
   materials: {
-    lambert2: THREE.MeshStandardMaterial
-  }
-}
+    lambert2: THREE.MeshStandardMaterial;
+  };
+};
 
 interface Spaceship {
+  nick: string;
   position: CartesianCoordinates;
   rotation: number;
+  collisionCoordinates?: CartesianCoordinates;
+  event: Event["type"];
 }
 
-export default function Model({ position: newPos, rotation: newRot, ...props }: Spaceship) {
-  const group = useRef<THREE.Group>()
-  const { nodes, materials } = useGLTF('./frontend/models/spaceship/scene.gltf') as GLTFResult
+export default function Model({
+  nick,
+  position: newPos,
+  rotation: newRot,
+  event,
+  collisionCoordinates,
+  ...props
+}: Spaceship) {
+  const group = useRef<THREE.Group>();
   const ref = useRef<THREE.Mesh>();
-  const [[prevPos, nextPos], setPositions] = useState<CartesianCoordinates[]>([newPos, newPos]);
+  const textRef = useRef<THREE.Mesh>();
+  const { nodes, materials } = useGLTF(
+    "/spaceship/scene.gltf"
+  ) as GLTFResult;
+  const [[prevPos, nextPos], setPositions] = useState<CartesianCoordinates[]>([
+    newPos,
+    newPos,
+  ]);
   const [[prevRot, nextRot], setRotations] = useState<number[]>([0, 0]);
-  console.log('Previous rotation: ', prevRot);
-  console.log('New rotation', newRot)
 
   useEffect(() => {
-    setPositions([nextPos, newPos])
-  }, [newPos]);
+    switch (event) {
+      case "collision": {
+        setPositions([nextPos, collisionCoordinates ?? newPos]);
+        setTimeout(() => {
+          setPositions([collisionCoordinates ?? newPos, nextPos]);
+        }, 850);
+        break;
+      }
+      case "move": {
+        setPositions([nextPos, newPos]);
+        break;
+      }
+      case "laser": {
+        setPositions([nextPos, newPos]);
+      }
+    }
+  }, [newPos, collisionCoordinates]);
 
   useEffect(() => {
-    setRotations([nextRot, newRot])
+    setRotations([nextRot, newRot]);
   }, [newRot]);
-  
+
+  const rotationRef = useSpringRef();
+  const moveRef = useSpringRef();
+
   const { rotation } = useSpring({
+    ref: rotationRef,
     from: {
       rotation: prevRot,
     },
@@ -56,12 +95,13 @@ export default function Model({ position: newPos, rotation: newRot, ...props }: 
     config: {
       precision: 0.001,
       duration: 250,
-      easing: easings.easeInOutSine
-    }
-  })
+      easing: easings.easeInOutSine,
+    },
+  });
 
   const { position } = useSpring({
-    delay: 750, // Wait for rotation
+    ref: moveRef,
+    //delay: 750, // Wait for rotation
     from: {
       position: prevPos,
     },
@@ -70,36 +110,46 @@ export default function Model({ position: newPos, rotation: newRot, ...props }: 
     },
     config: {
       precision: 0.001,
-      duration: 1250,
-      easing: easings.easeInOutSine
-    }
-  })
+      duration: 600, //1250,
+      easing: easings.easeInOutSine,
+    },
+  });
 
+  useChain([rotationRef, moveRef]);
 
-  useFrame(({ clock }) => {
-    if(ref.current) {
-      ref.current.position.y = (Math.sin(clock.getElapsedTime()) / 20) + .5;
+  useFrame(({ clock, camera }) => {
+    if (group.current) {
+      group.current.position.y = Math.sin(clock.getElapsedTime()) / 20 + 0.5;
     }
-  })
+    if (textRef.current) {
+      textRef.current.quaternion.copy(camera.quaternion)
+    }
+  });
 
   return (
-    <group ref={group} {...props} dispose={null}>
-      <group rotation={[-Math.PI / 2, 0, 0]}>
-        <group rotation={[Math.PI / 2, 0, 0]}>
-          <animated.mesh
-            ref={ref}
-            castShadow
-            receiveShadow
-            geometry={nodes.pCylinder13_lambert2_0.geometry}
-            material={materials.lambert2}
-            position={position}
-            rotation-y={rotation}
-            scale={.03}
-          />
-        </group>
-      </group>
-    </group>
-  )
+    <animated.group ref={group} position={position} {...props} dispose={null}>
+      <animated.mesh
+        ref={ref}
+        castShadow
+        receiveShadow
+        geometry={nodes.pCylinder13_lambert2_0.geometry}
+        material={materials.lambert2}
+        position={[0, 0, 0]}
+        rotation-y={rotation}
+        scale={0.03}
+      />
+      <Text
+        ref={textRef}
+        position={[0, .5, 0]}
+        fontSize={0.2}
+        color="rgba(16, 185, 129)"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {nick}
+      </Text>
+    </animated.group>
+  );
 }
 
-useGLTF.preload('./frontend/models/spaceship/scene.gltf')
+useGLTF.preload("/spaceship/scene.gltf");

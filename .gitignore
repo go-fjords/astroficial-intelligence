@@ -8,3 +8,11 @@ dist-ssr
 .calva
 .cpcache
 .nrepl-port
+vendor
+.vscode
+bin
+obj
+target
+.gradle
+build
+.idea
