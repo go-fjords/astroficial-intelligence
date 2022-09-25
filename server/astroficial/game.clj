@@ -74,7 +74,12 @@
 
 (defn start-game!
   []
-  (swap! state #(assoc % :status :play)))
+  (when (> (count (:players @state)) 1)
+    (swap! state #(assoc % :status :playing))))
+
+(defn pause-game!
+  []
+  (swap! state #(assoc % :status :paused)))
 
 (defn join-player
   [{:keys [url nick]}
@@ -139,25 +144,29 @@
            (> (hex/distance old-pos new-pos) 1)
            {:type :noop
             :nick (:nick action)
+            :score -5
             :reason "Too far, specify a direction in terms of -1 >= x <= 1"}
 
            (not (land-hex? (:grid state) new-pos))
            {:type :collision
             :nick (:nick action)
-            :hitpoints -5
+            :hitpoints 5
+            :score -5
             :coordinates new-pos
             :reason "Can't move to a non-land hex, subtracting hitpoints"}
 
            (colliding-players? (:players state) actions (:nick action) new-pos)
            {:type :collision
             :nick (:nick action)
-            :hitpoints -5
+            :hitpoints 5
+            :score -5
             :coordinates new-pos
             :reason "Can't move to a hex occupied by another player, subtracting hitpoints"}
 
            :else
            {:type :move
             :nick (:nick action)
+            :score 5
             :coordinates new-pos}))
        (catch Exception e
          (println "Error in move->event" e)
@@ -185,27 +194,29 @@
       (cond (empty? line-of-fire)
             [{:type :noop
               :nick (:nick action)
+              :score -5
               :reason "Can't fire laser in that direction"}]
 
             ;; If line of fire contains player coordinates then we hit a player
             :else
-            (do (println "lazer ftw")
-                (concat [{:type :laser
-                          :nick (:nick action)
-                          :start (:coordinates player)
-                          :end (last line-of-fire)}]
-                        (map (fn [opponent]
-                               (println "Hit opponent")
-                               {:type :laser-hit
-                                :nick (:nick opponent)
-                                :hitpoints 10
-                                :coordinates (:coordinates opponent)
-                                :reason "Got hit by laser"})
-                             hit)))))
+            (concat [{:type :laser
+                      :nick (:nick action)
+                      :score 8
+                      :start (:coordinates player)
+                      :end (last line-of-fire)}]
+                    (map (fn [opponent]
+                           (println "Hit opponent")
+                           {:type :laser-hit
+                            :nick (:nick opponent)
+                            :hitpoints 10
+                            :coordinates (:coordinates opponent)
+                            :reason "Got hit by laser"})
+                         hit))))
     (catch Exception e
       (println "Error in laser->event" e)
       {:type :noop
        :nick (:nick action)
+       :score -5
        :reason "Failed while processing laser action"})))
 
 
@@ -219,7 +230,9 @@
     (assoc state
            :players (map (fn [player]
                            (if (= (:nick player) (:nick event))
-                             (assoc player :coordinates (:coordinates event))
+                             (assoc player
+                                    :coordinates (:coordinates event)
+                                    :score (+ (:score event) (:score player)))
                              player))
                          (:players state))
            :events (conj (:events state) event))))
@@ -234,7 +247,11 @@
     (tap*> (assoc state
            :players (map (fn [player]
                            (if (= (:nick player) (:nick event))
-                             (assoc player :hitpoints (- (:hitpoints player) (:hitpoints event)))
+                             (assoc player
+                                    :hitpoints (- (:hitpoints player)
+                                                  (:hitpoints event))
+                                    :score (+ (:score player)
+                                              (:score event)))
                              player))
                          (:players state))
            :events (conj (:events state) event)))))
@@ -242,7 +259,6 @@
 (defn laser-event->state
   "Given game state and laser event applies"
   [state event]
-  (println "Apply laser event" event)
   (if (not= (:type event) :laser)
     state
     (assoc state
@@ -262,6 +278,18 @@
                          (:players state))
            :events (conj (:events state) event))))
 
+(defn noop-event->state
+  "Given game state and a noop event applies the new score"
+  [state event]
+  (if (not= (:type event) :noop)
+    state
+    (assoc state
+           :players (map (fn [player]
+                           (if (= (:nick player) (:nick event))
+                             (update player :score #(+ % (:score event)))
+                             player))
+                         (:players state))
+           :events (conj (:events state) event))))
 
 (defn apply-move-actions
   [state actions]
@@ -271,6 +299,7 @@
     (reduce #(case (:type %2)
                :move (move-event->state %1 %2)
                :collision (collision-event->state %1 %2)
+               :noop (noop-event->state %1 %2)
                %1) ;; Move events can trigger both move and collision events
             state
             $)))
@@ -284,7 +313,19 @@
     (reduce #(case (:type %2)
                :laser (laser-event->state %1 %2)
                :laser-hit (laser-hit-event->state %1 %2)
+               :noop (noop-event->state %1 %2)
                %1) state $)))
+
+(defn end-game?
+  [state]
+  (if (and (= :playing (:status state))
+           (or (>= (->> (:players state)
+                        (filter #(<= (:hitpoints %) 0))
+                        (count))
+                   1)
+               (>= (:turn state) 150)))
+    (assoc state :status :game-over)
+    state))
 
 (defn apply-actions
   ""
@@ -294,7 +335,9 @@
     (update $ :round inc)
     (assoc $ :events [])
     (apply-move-actions $ actions)
-    (apply-laser-actions $ actions)))
+    (apply-laser-actions $ actions)
+    (dissoc $ :status)
+    (end-game? $)))
 
 
 

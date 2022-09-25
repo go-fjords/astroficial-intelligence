@@ -5,15 +5,13 @@ import { HEXAGON_SIZE } from './constants';
 import { HexMesh as HexagonState } from './state';
 
 
-type Text = typeof Text;
-
 export const Hexagon = ({ coordinates, hexCoordinates, height = 0.1 }: HexagonState) => {
     const textures = useTexture({
-      map: './frontend/models/rocks/Rock048_1K_Color.jpg',
-      displacementMap: './frontend/models/rocks/Rock048_1K_Displacement.jpg',
-      normalMap: './frontend/models/rocks/Rock048_1K_NormalGL.jpg',
-      roughnessMap: './frontend/models/rocks/Rock048_1K_Roughness.jpg',
-      aoMap: './frontend/models/rocks/Rock048_1K_AmbientOcclusion.jpg',
+      map: '/rocks/Rock048_1K_Color.jpg',
+      displacementMap: '/rocks/Rock048_1K_Displacement.jpg',
+      normalMap: '/rocks/Rock048_1K_NormalGL.jpg',
+      roughnessMap: '/rocks/Rock048_1K_Roughness.jpg',
+      aoMap: '/rocks/Rock048_1K_AmbientOcclusion.jpg',
     });
 
     const ref = useRef<any>()

@@ -18,12 +18,14 @@ interface EventMove {
   type: "move";
   nick: string;
   coordinates: Coordinates;
+  score: number;
 }
 
 interface EventCollision {
   type: "collision";
   nick: string;
   coordinates: Coordinates;
+  score: number;
 }
 
 interface EventLaser {
@@ -31,10 +33,13 @@ interface EventLaser {
   nick: string;
   start: Coordinates;
   end: Coordinates;
+  score: number;
 }
 
 interface EventNoop {
   type: "noop";
+  nick: string;
+  score: number;
 }
 
 type Event = EventMove | EventCollision | EventLaser | EventNoop;
@@ -42,6 +47,7 @@ type Event = EventMove | EventCollision | EventLaser | EventNoop;
 interface Player {
   nick: string;
   hitpoints: number;
+  score: number;
   coordinates: Coordinates;
   cartesianCoordinates: CartesianCoordinates;
 }
@@ -55,6 +61,7 @@ interface HexTile {
 }
 
 interface ServerState {
+  status: "initialized" | "playing" | "paused" | "game-over";
   round: number;
   players: Player[];
   grid: HexTile[];
@@ -63,6 +70,7 @@ interface ServerState {
 
 interface Spaceship {
   nick: string;
+  score: number;
   hitpoints: number;
   coordinates: CartesianCoordinates;
   collisionCoordinates?: CartesianCoordinates;
@@ -87,6 +95,7 @@ export interface Laser {
 }
 
 interface GameState {
+  status: "initialized" | "playing" | "paused" | "game-over";
   initialized: boolean;
   clock: THREE.Clock;
   round: number;
@@ -102,6 +111,7 @@ type State = GameState;
 
 export const useStore = create<State>((set, get) => ({
   initialized: false,
+  status: "",
   clock: new THREE.Clock(),
   round: 0,
   lasers: [],
@@ -114,12 +124,14 @@ export const useStore = create<State>((set, get) => ({
 
     set((_state) => ({
       initialized: true,
+      status: serverState.status,
       clock: new THREE.Clock(false),
       round: serverState.round,
       lasers: [],
       spaceships: serverState.players.map((player) => ({
         nick: player.nick,
         hitpoints: player.hitpoints,
+        score: player.score,
         coordinates: hexCoodinateToThreeCoordinate(
           player.coordinates,
           SPACESHIP_HEIGHT
@@ -153,9 +165,9 @@ export const useStore = create<State>((set, get) => ({
   },
 
   update: async (serverState: ServerState) => {
-    console.log(JSON.stringify(serverState.events, null, 2))
     set(
       produce((state: GameState) => {
+        state.status = serverState.status;
         state.lasers = [];
         serverState.events.forEach((event) => {
           switch (event.type) {
@@ -165,6 +177,7 @@ export const useStore = create<State>((set, get) => ({
               );
               if (spaceship) {
                 spaceship.event = 'move';
+                spaceship.score += event.score;
                 const oldHexCoordinates = spaceship.hexCoordinates;
                 spaceship.coordinates = hexCoodinateToThreeCoordinate(
                   event.coordinates,
@@ -183,6 +196,7 @@ export const useStore = create<State>((set, get) => ({
                 (s) => s.nick === event.nick
               );
               if (spaceship) {
+                spaceship.score += event.score;
                 const [x1, y, z1] = hexCoodinateToThreeCoordinate(
                   event.coordinates,
                   SPACESHIP_HEIGHT
@@ -203,6 +217,7 @@ export const useStore = create<State>((set, get) => ({
                 (s) => s.nick === event.nick
               );
               if(spaceship) {
+                spaceship.score += event.score;
                 spaceship.event = 'laser';
                 spaceship.rotation = hexPositionsToRadianAngle(
                   event.start,
@@ -219,6 +234,13 @@ export const useStore = create<State>((set, get) => ({
               })
             }
             case "noop": {
+              const spaceship = state.spaceships.find(
+                (s) => s.nick === event.nick
+              );
+              if(spaceship) {
+                spaceship.score += event.score;
+                spaceship.event = 'noop';
+              }
               break;
             }
           }

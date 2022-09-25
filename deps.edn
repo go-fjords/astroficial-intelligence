@@ -1,4 +1,4 @@
-{:paths ["server"]
+{:paths ["server" "dist"]
  :deps {org.clojure/clojure {:mvn/version "1.11.1"}
         org.clojure/core.async {:mvn/version "1.5.648"}
         luminus/ring-undertow-adapter {:mvn/version "1.2.5"}
@@ -7,6 +7,9 @@
         org.clojars.efi/simplex {:mvn/version "0.2.2"}
         clj-http/clj-http {:mvn/version "3.12.3"}}
  :aliases {:reveal-nrepl-middleware
-{:extra-deps {vlaaad/reveal {:mvn/version "1.3.276"}}
- :main-opts  ["-m" "nrepl.cmdline"
-              "--middleware" "[vlaaad.reveal.nrepl/middleware,cider.nrepl/cider-middleware]"]}}}
+           {:extra-deps {vlaaad/reveal {:mvn/version "1.3.276"}}
+            :main-opts  ["-m" "nrepl.cmdline"
+                         "--middleware" "[vlaaad.reveal.nrepl/middleware,cider.nrepl/cider-middleware]"]}
+           :build
+           {:deps {io.github.clojure/tools.build {:git/tag "v0.8.3" :git/sha "0d20256"}}
+            :ns-default build}}}  ; <-- set build namespace as default}}

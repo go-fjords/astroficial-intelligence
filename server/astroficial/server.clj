@@ -46,22 +46,23 @@
 (defn start-game!
   []
   (println "Starting game")
-  (swap! game/state #(assoc % :status :play))
-  (println "Game status" (:status @game/state))
   (go-loop [] ;; Use a go-loop to keep running rounds until the game is over
+    (println "Game status" (:status @game/state))
     (when (and (= 2 (count (:players @game/state)))
-               (= (:status @game/state) :play)) ;; Abort game loop when game is no longer in play
+               (= (:status @game/state) :playing)) ;; Abort game loop when game is no longer in play
       (println "Running round!")
       (let [state @game/state ;; Get the current game state
             prepared-actions (->> state ai-requests (mapv #(-> % ask-ai! future)))] ;; Send of AI requests
         (<! (timeout 4000)) ;; Wait for at least 4 secs before doing anything
-        ;; Calculate new game state
-        (->> prepared-actions
-             (mapv deref)
-             (game/apply-actions state)
-             (reset! game/state))
+        ;; Check if we're still playing after waiting for AI responses
+        ;; and if so calculate new game state
+        (when (= :playing (:status @game/state))
+          (as-> prepared-actions $
+            (mapv deref $)
+            (game/apply-actions state $)
+            (swap! game/state (fn [s] (merge s $))))
         ;; Start new round
-        (recur)))))
+          (recur))))))
 
 (defn client-message
   "Given message from client"
@@ -69,14 +70,11 @@
   (println "Message" message)
   (case (-> message :command keyword)
     :start (game/start-game!)
+    :pause (game/pause-game!)
     :init (game/init-game!)
     :reset (game/reset-game!)
     :join (game/join-player! message)
     (constantly true)))
-
-(comment
-  (keyword nil)
-  ())
 
 ;; Whenever state is updated send it to the graphics clients
 (add-watch game/state
@@ -84,39 +82,25 @@
            (fn [_key _atom old-state new-state]
              (println "Send updated state to clients")
              (doseq [client @clients]
-                    (as-> new-state $
-                      (assoc $ :type
-                             (cond (= :initialized (:status new-state))
-                                   :init
+               (as-> new-state $
+                 (assoc $ :type
+                        (cond (= :initialized (:status new-state))
+                              :init
 
-                                   :default :update))
-                      (muuntaja/encode "application/json" $)
-                      (slurp $)
-                      (ws/send $ client)))))
+                              :default :update))
+                 (muuntaja/encode "application/json" $)
+                 (slurp $)
+                 (ws/send $ client)))))
 
 ;; Whenever game status is updated to playing start the game loop
 (add-watch game/state
            :start-game
            (fn [_key _atom old-state new-state]
              (println ":start-game")
-             (when (and (= :play (:status new-state))
+             (when (and (= :playing (:status new-state))
                         (not= (:status old-state)
                               (:status new-state)))
                (future (start-game!)))))
-
-
-
-(defn handler [_]
-  (println "Hello world!!!")
-  {:status 200  
-   :body "Hello world."})
-
-(defn ping-handler [_]
-  (println "Pong")
-  {:status 200
-   :body "Pong"})
-
-(defn join-handler [_])
 
 (defn web-socket-handler
   [req]
@@ -139,28 +123,29 @@
                   (swap! clients #(disj % channel)))}})
 
 
-(def app 
+(def app
   (ring/ring-handler
    (ring/router
-    [["/" handler]
-     ["/ui" {:name ::ui
-             :get web-socket-handler}]
-     ["/ping" {:name ::ping
-               :get ping-handler
-               :post handler}]
-     ["/join" {:name ::join
-               :post join-handler}]])))
+    [["/socket" {:name ::ui
+                 :get web-socket-handler}]])
+  (ring/routes
+    (ring/create-file-handler {:path "/" :root "dist"})
+    (ring/create-default-handler))))
 
-(defn start-server!
+(defn start!
   []
+  (game/init-game!)
   (swap! server
-        (fn [s]
-          (when s (.stop s))
-          (reset! clients [])
-          (run-undertow #'app {:port 8080}))))
+         (fn [s]
+           (when s (.stop s))
+           (reset! clients [])
+           (run-undertow #'app {:host "0.0.0.0" :port 8080}))))
 
+
+;; Rich comments are used to test code interactively and show some of the development
+;; process.
 (comment
-  (start-server!)
+  (start!)
 
   (do
     (astroficial.hex/seed!)
@@ -170,7 +155,7 @@
     (game/join-player! {:url "http://127.0.0.1:1337" :nick "Player 1"})
     (game/join-player! {:url "http://127.0.0.1:1338" :nick "Player 2"}))
 
-  (swap! game/state #(assoc % :status :initialized))
+  (swap! game/state #(assoc % :status :pause))
 
   (swap! game/state #(assoc % :status :play))
 
@@ -197,7 +182,5 @@
         second (future (ask-ai! {:url "http://localhost:1338" :state @game/state}))]
     [@first @second @awaiter])
 
-  (require '[vlaaad.reveal :as r])
-
-  )
+  (require '[vlaaad.reveal :as r]))
 
