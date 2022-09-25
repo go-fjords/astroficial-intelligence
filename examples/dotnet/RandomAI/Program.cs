@@ -40,9 +40,9 @@ var add = (List<int> a, List<int> b) => {
 // Given new coordinate b and old coordinate a returns direction from a to b
 var sub = (List<int> a, List<int> b) => {
   return new List<int> {
-    b[0] - a[0],
-    b[1] - a[1],
-    b[2] - a[2],
+    a[0] - b[0],
+    a[1] - b[1],
+    a[2] - b[2],
   };
 };
 

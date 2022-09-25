@@ -39,3 +39,23 @@ To run the AI you need to have the [.NET Core SDK](https://dotnet.microsoft.com/
 ```sh
 dotnet watch run --project RandomAI
 ```
+
+## [Kotlin and Javalin](/kotlin-javalin/AI)
+
+A random AI implemented in Kotlin using the [Javalin](https://javalin.io/) framework.
+The project was set up using IntelliJ IDEA and uses the Gradle build system.
+It implements the same random AI as the other examples.
+
+The recommended way to run and develop the AI is to use IntelliJ IDEA as it has better support for Kotlin and running Kotlin based projects.
+Though it is always possible to use just Gradle.
+
+To run the AI you need to have the following installed:
+
+- [Java 17](https://adoptium.net/en-GB/temurin/releases/?version=17)
+- [Gradle](https://gradle.org/install/)
+
+Then you can run the AI using:
+
+```sh
+gradle run
+```

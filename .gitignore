@@ -12,3 +12,7 @@ vendor
 .vscode
 bin
 obj
+target
+.gradle
+build
+.idea
