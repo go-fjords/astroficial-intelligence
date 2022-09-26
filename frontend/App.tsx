@@ -161,16 +161,16 @@ const GameControls = ({ sendMessage }) => {
 
       <button
         className="bg-green-500 shadow py-2 px-2 rounded pointer-events-auto cursor-pointer"
-        onClick={() => sendMessage({ command: "init" })}
-        title="Re-initialize entire game state"
+        onClick={() => sendMessage({ command: "reset" })}
+        title="Reset all players to initial state"
       >
         Reset game
       </button>
 
       <button
         className="bg-green-500 shadow py-2 px-2 rounded pointer-events-auto cursor-pointer"
-        onClick={() => sendMessage({ command: "init" })}
-        title="Reset all players to initial state"
+        onClick={() => sendMessage({ command: "restart" })}
+        title="Restart game and wipe players"
       >
         Restart server
       </button>
@@ -249,8 +249,7 @@ function App() {
       const message = JSON.parse(lastMessage.data);
       // If we already got server state we should update instead
 
-      console.log(message);
-      if (message.type === "init") {
+      if (message.status === "initialized") {
         init(message);
       } else {
         update(message);

@@ -25,6 +25,16 @@ const ANGLES: {[coord: string]: number} = [
 
 /**
  * 
+ * @param a the first coordinate
+ * @param b the second coordinate
+ * @returns the new coordinate
+ */
+export const addHexCoordinates = (a: HexCoordinate, b: HexCoordinate): HexCoordinate => {
+    return [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+}
+
+/**
+ * 
  * @param hex1 Initial hex position
  * @param hex2 Target hex position
  * @returns angle expressed in radians
@@ -35,8 +45,6 @@ export const hexPositionsToRadianAngle = (hex1: HexCoordinate, hex2: HexCoordina
     const angle = ANGLES[JSON.stringify([q2 - q1, r2 - r1, s2 - s1])];
     return angle;
 }
-
-console.log('ANGLES', ANGLES);
 
 /**
  * Given a hex coordinate and a height, returns the corresponding three

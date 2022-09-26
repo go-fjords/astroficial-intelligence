@@ -39,13 +39,6 @@ const validMoves = (grid, currentPos) => {
     .map(hex => subHex(hex.coordinates, currentPos));
 }
 
-const vallidAttackDirection = (grid, currentPos) => {
-  const neighbours = moves.map(move => addHex(currentPos, move));
-  return grid
-    .filter(hex => neighbours.find(n => equalPos(n, hex.coordinates)))
-    .map(hex => subHex(hex.coordinates, currentPos));
-}
-
 // Simulate slowness for testing purposes, e.g. await timer(5000);
 const timer = ms => new Promise( res => setTimeout(res, ms));
 

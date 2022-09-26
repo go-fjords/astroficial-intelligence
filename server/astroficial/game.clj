@@ -46,9 +46,12 @@
   (hex/hex-map hex/grid-options))
 
 (defn reset-player
-  [player]
+  [grid player i]
   (merge (new-player "" "")
-         (select-keys player [:url :nick])))
+         (select-keys player [:url :nick])
+         {:coordinates (case i
+                         0 (hex/left-most grid)
+                         1 (hex/right-most grid))}))
 
 (defn reset-state
   [state]
@@ -67,10 +70,12 @@
    Useful to generate appropriate grid to play on."
   []
   (astroficial.hex/seed!)
-  (swap! state #(-> %
-                    (merge (dissoc init-state :players))
-                    (assoc :grid (new-grid))
-                    (update :players (map reset-player)))))
+  (swap! state (fn [s]
+                 (as-> s $
+                   (merge $ (dissoc init-state :players))
+                   (assoc $ :grid (new-grid))
+                   (update $ :players
+                           #(map (partial reset-player (:grid $)) % (range)))))))
 
 (defn start-game!
   []
@@ -110,7 +115,7 @@
   (first (filter #(= (:nick %) (:nick action)) players)))
 
 
-(defn colliding-players?
+(defn colliding-players
   "Check if the player will collide with any other player given state, action and actions.
    No need to check validity of other player moves, new-pos is already checked for validity."
   [players actions nick new-position]
@@ -122,10 +127,7 @@
             actions
             players)
        (filter #(not= (:nick %) nick))
-       (map :new-coordinates)
-       (filter #(= new-position %))
-       count
-       (not= 0)))
+       (filter #(= new-position (:new-coordinates %)))))
 
 
 (defn move->event
@@ -139,35 +141,47 @@
                           (filter #(= (:nick %) (:nick action)))
                           first
                           :coordinates)
-             new-pos (->> action :direction (hex/add old-pos))]
+             new-pos (->> action :direction (hex/add old-pos))
+             colliding-players (colliding-players (:players state) actions (:nick action) new-pos)]
          (cond
            (> (hex/distance old-pos new-pos) 1)
            {:type :noop
             :nick (:nick action)
             :score -5
+            :hitpoints 0
             :reason "Too far, specify a direction in terms of -1 >= x <= 1"}
 
            (not (land-hex? (:grid state) new-pos))
            {:type :collision
             :nick (:nick action)
-            :hitpoints 5
+            :hitpoints -5
             :score -5
             :coordinates new-pos
             :reason "Can't move to a non-land hex, subtracting hitpoints"}
 
-           (colliding-players? (:players state) actions (:nick action) new-pos)
-           {:type :collision
-            :nick (:nick action)
-            :hitpoints 5
-            :score -5
-            :coordinates new-pos
-            :reason "Can't move to a hex occupied by another player, subtracting hitpoints"}
+           (> 0 (count colliding-players))
+           (concat [{:type :ram
+                     :nick (:nick action)
+                     :hitpoints -5
+                     :score -5
+                     :coordinates new-pos
+                     :reason "Rammed other players spaceship, subtracting hitpoints from both players"}]
+                   (map (fn [player]
+                          {:type :rammed
+                           :nick (:nick player)
+                           :hitpoints -10
+                           :score -10
+                           :coordinates new-pos
+                           :reason "Can't move to a hex occupied by another player, subtracting hitpoints"})
+                        colliding-players))
 
            :else
            {:type :move
             :nick (:nick action)
             :score 5
-            :coordinates new-pos}))
+            :coordinates new-pos
+            :hitpoints 0
+            :reason "Moving to a valid hex, adding score"}))
        (catch Exception e
          (println "Error in move->event" e)
          {:type :noop
@@ -184,7 +198,7 @@
     (let [player (action->player action players)
           line-of-fire (->> (hex/strait-draw (:coordinates player)
                                              (:direction action)
-                                             12)
+                                             4)
                             (hex/coords->hexagons grid)
                             (take-while #(#{:land :void} (:terrain %)))
                             (map :coordinates))
@@ -194,7 +208,8 @@
       (cond (empty? line-of-fire)
             [{:type :noop
               :nick (:nick action)
-              :score -5
+              :score -10
+              :hitpoints 0
               :reason "Can't fire laser in that direction"}]
 
             ;; If line of fire contains player coordinates then we hit a player
@@ -203,12 +218,15 @@
                       :nick (:nick action)
                       :score 8
                       :start (:coordinates player)
-                      :end (last line-of-fire)}]
+                      :end (last line-of-fire)
+                      :direction (:direction action)
+                      :hitpoints 0}]
                     (map (fn [opponent]
                            (println "Hit opponent")
                            {:type :laser-hit
                             :nick (:nick opponent)
-                            :hitpoints 10
+                            :score 0
+                            :hitpoints -20
                             :coordinates (:coordinates opponent)
                             :reason "Got hit by laser"})
                          hit))))
@@ -216,6 +234,7 @@
       (println "Error in laser->event" e)
       {:type :noop
        :nick (:nick action)
+       :hitpoints 0
        :score -5
        :reason "Failed while processing laser action"})))
 
@@ -245,16 +264,54 @@
   (if (not= (:type event) :collision)
     state
     (tap*> (assoc state
-           :players (map (fn [player]
-                           (if (= (:nick player) (:nick event))
-                             (assoc player
-                                    :hitpoints (- (:hitpoints player)
-                                                  (:hitpoints event))
-                                    :score (+ (:score player)
-                                              (:score event)))
-                             player))
-                         (:players state))
-           :events (conj (:events state) event)))))
+                  :players (map (fn [player]
+                                  (if (= (:nick player) (:nick event))
+                                    (assoc player
+                                           :hitpoints (+ (:hitpoints player)
+                                                         (:hitpoints event))
+                                           :score (+ (:score player)
+                                                     (:score event)))
+                                    player))
+                                (:players state))
+                  :events (conj (:events state) event)))))
+
+(defn ram-event->state
+  "Given game state and ram event applies it
+   and returns new game state"
+  [state event]
+  (println "Apply ram event" event)
+  (if (not= (:type event) :ram)
+    state
+    (tap*> (assoc state
+                  :players (map (fn [player]
+                                  (if (= (:nick player) (:nick event))
+                                    (assoc player
+                                           :hitpoints (+ (:hitpoints player)
+                                                         (:hitpoints event))
+                                           :score (+ (:score player)
+                                                     (:score event)))
+                                    player))
+                                (:players state))
+                  :events (conj (:events state) event)))))
+
+(defn rammed-event->state
+  "Given game state and rammed event applies it
+   and returns new game state"
+  [state event]
+  (println "Apply rammed event" event)
+  (if (not= (:type event) :rammed)
+    state
+    (tap*> (assoc state
+                  :players (map (fn [player]
+                                  (if (= (:nick player) (:nick event))
+                                    (assoc player
+                                           :hitpoints (+ (:hitpoints player)
+                                                         (:hitpoints event))
+                                           :score (+ (:score player)
+                                                     (:score event)))
+                                    player))
+                                (:players state))
+                  :events (conj (:events state) event)))))
 
 (defn laser-event->state
   "Given game state and laser event applies"
@@ -273,7 +330,7 @@
     (assoc state
            :players (map (fn [player]
                            (if (= (:nick player) (:nick event))
-                             (update player :hitpoints #(- % (:hitpoints event)))
+                             (update player :hitpoints #(+ % (:hitpoints event)))
                              player))
                          (:players state))
            :events (conj (:events state) event))))
@@ -299,6 +356,8 @@
     (reduce #(case (:type %2)
                :move (move-event->state %1 %2)
                :collision (collision-event->state %1 %2)
+               :ram (ram-event->state %1 %2)
+               :rammed (rammed-event->state %1 %2)
                :noop (noop-event->state %1 %2)
                %1) ;; Move events can trigger both move and collision events
             state
@@ -323,9 +382,12 @@
                         (filter #(<= (:hitpoints %) 0))
                         (count))
                    1)
-               (>= (:turn state) 150)))
+               (>= (:round state) 150)))
     (assoc state :status :game-over)
     state))
+
+(comment
+  (:status @state))
 
 (defn apply-actions
   ""
@@ -336,7 +398,6 @@
     (assoc $ :events [])
     (apply-move-actions $ actions)
     (apply-laser-actions $ actions)
-    (dissoc $ :status)
     (end-game? $)))
 
 

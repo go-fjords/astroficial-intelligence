@@ -58,6 +58,8 @@ export default function Model({
   ]);
   const [[prevRot, nextRot], setRotations] = useState<number[]>([0, 0]);
 
+  console.log('Ship rotation', newRot)
+
   useEffect(() => {
     switch (event) {
       case "collision": {

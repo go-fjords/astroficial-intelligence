@@ -1,10 +1,9 @@
 import * as THREE from "three";
 import create, { GetState, SetState } from "zustand";
-import {
-  subscribeWithSelector,
-} from "zustand/middleware";
+import { subscribeWithSelector } from "zustand/middleware";
 import { produce } from "immer";
 import {
+  addHexCoordinates,
   hexCoodinateToThreeCoordinate,
   hexPositionsToRadianAngle,
 } from "./calculations";
@@ -19,6 +18,7 @@ interface EventMove {
   nick: string;
   coordinates: Coordinates;
   score: number;
+  reason: string;
 }
 
 interface EventCollision {
@@ -26,6 +26,24 @@ interface EventCollision {
   nick: string;
   coordinates: Coordinates;
   score: number;
+  hitpoints: number;
+  reason: string;
+}
+
+interface EventRam {
+  type: "ram";
+  nick: string;
+  score: number;
+  hitpoints: number;
+  reason: string;
+}
+
+interface EventRammed {
+  type: "rammed";
+  nick: string;
+  score: number;
+  hitpoints: number;
+  reason: string;
 }
 
 interface EventLaser {
@@ -34,6 +52,16 @@ interface EventLaser {
   start: Coordinates;
   end: Coordinates;
   score: number;
+  reason: string;
+}
+
+interface EventLaserHit {
+  type: "laser-hit";
+  nick: string;
+  coordinates: Coordinates;
+  direction: Coordinates;
+  hitpoints: number;
+  reason: string;
 }
 
 interface EventNoop {
@@ -42,7 +70,14 @@ interface EventNoop {
   score: number;
 }
 
-type Event = EventMove | EventCollision | EventLaser | EventNoop;
+type Event =
+  | EventMove
+  | EventCollision
+  | EventRam
+  | EventRammed
+  | EventLaser
+  | EventLaserHit
+  | EventNoop;
 
 interface Player {
   nick: string;
@@ -76,7 +111,7 @@ interface Spaceship {
   collisionCoordinates?: CartesianCoordinates;
   hexCoordinates: Coordinates;
   rotation: number;
-  event: Event['type'];
+  event: Event["type"];
 }
 
 export interface HexMesh {
@@ -138,7 +173,7 @@ export const useStore = create<State>((set, get) => ({
         ),
         hexCoordinates: player.coordinates,
         rotation: 0,
-        event: 'noop'
+        event: "noop",
       })),
       hexagons: serverState.grid.map((tile) => {
         let height = 0;
@@ -169,6 +204,7 @@ export const useStore = create<State>((set, get) => ({
       produce((state: GameState) => {
         state.status = serverState.status;
         state.lasers = [];
+        state.round = serverState.round;
         serverState.events.forEach((event) => {
           switch (event.type) {
             case "move": {
@@ -176,7 +212,7 @@ export const useStore = create<State>((set, get) => ({
                 (s) => s.nick === event.nick
               );
               if (spaceship) {
-                spaceship.event = 'move';
+                spaceship.event = "move";
                 spaceship.score += event.score;
                 const oldHexCoordinates = spaceship.hexCoordinates;
                 spaceship.coordinates = hexCoodinateToThreeCoordinate(
@@ -197,18 +233,23 @@ export const useStore = create<State>((set, get) => ({
               );
               if (spaceship) {
                 spaceship.score += event.score;
+                spaceship.hitpoints += event.hitpoints;
                 const [x1, y, z1] = hexCoodinateToThreeCoordinate(
                   event.coordinates,
                   SPACESHIP_HEIGHT
                 );
                 const [x2, _, z2] = spaceship.coordinates;
 
-                spaceship.collisionCoordinates = [(x1 + x2) / 2, y, (z1 + z2) / 2];
+                spaceship.collisionCoordinates = [
+                  (x1 + x2) / 2,
+                  y,
+                  (z1 + z2) / 2,
+                ];
                 spaceship.rotation = hexPositionsToRadianAngle(
                   spaceship.hexCoordinates,
                   event.coordinates
                 );
-                spaceship.event = 'collision';
+                spaceship.event = "collision";
               }
               break;
             }
@@ -216,12 +257,12 @@ export const useStore = create<State>((set, get) => ({
               const spaceship = state.spaceships.find(
                 (s) => s.nick === event.nick
               );
-              if(spaceship) {
+              if (spaceship) {
                 spaceship.score += event.score;
-                spaceship.event = 'laser';
+                spaceship.event = "laser";
                 spaceship.rotation = hexPositionsToRadianAngle(
                   event.start,
-                  event.end
+                  addHexCoordinates(event.start, event.direction)
                 );
               }
 
@@ -229,17 +270,30 @@ export const useStore = create<State>((set, get) => ({
                 nick: event.nick,
                 startCoordinates: hexCoodinateToThreeCoordinate(event.start, 1),
                 endCoordinates: hexCoodinateToThreeCoordinate(event.end, 1),
-                rotation: hexPositionsToRadianAngle(event.start, event.end),
+                rotation: hexPositionsToRadianAngle(
+                  event.start,
+                  addHexCoordinates(event.start, event.direction)
+                ),
                 height: 1,
-              })
+              });
             }
+
+            case "laser-hit": {
+              const spaceship = state.spaceships.find(
+                (s) => s.nick === event.nick
+              );
+              if (spaceship) {
+                spaceship.hitpoints += event.hitpoints;
+              }
+            }
+
             case "noop": {
               const spaceship = state.spaceships.find(
                 (s) => s.nick === event.nick
               );
-              if(spaceship) {
+              if (spaceship) {
                 spaceship.score += event.score;
-                spaceship.event = 'noop';
+                spaceship.event = "noop";
               }
               break;
             }
@@ -254,7 +308,6 @@ export const useStore = create<State>((set, get) => ({
           state.lasers = [];
         })
       );
-    }, 3500)
-    
+    }, 3500);
   },
 }));
